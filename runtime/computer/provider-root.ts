@@ -3,7 +3,7 @@ import { join } from 'node:path'
 
 /**
  * Directory holding the native computer-use providers, exactly as the app bundles
- * them: `Open Science Computer Use.app` (macOS), `runtime.py` (Linux, AT-SPI) and
+ * them: `医学智能体工作台 Computer Use.app` (macOS), `runtime.py` (Linux, AT-SPI) and
  * `runtime.ps1` (Windows, UI Automation).
  *
  * The app exports this when it starts the agent runtime. Unset means this runtime

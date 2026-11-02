@@ -121,3 +121,11 @@ that the rendered result is readable.
 6. Final PDF/page was rasterized and visually inspected: readable text, no
    overlap, clipping, or margin overflow.
 7. Saved to the workspace and referenced by path so it surfaces as an artifact.
+
+## Medical addendum
+
+When the target is a **medical** manuscript, the med-figures skill overrides on
+chart form: ROC with CI-labeled AUC, forest plots with heterogeneity footnotes,
+Kaplan–Meier with number-at-risk tables, colorblind-safe palettes, and physical
+sizes matched to journal columns (89/183 mm).
+

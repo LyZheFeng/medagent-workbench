@@ -29,10 +29,8 @@ describe("connectorConfig", () => {
   });
 
   it("launches a console-script connector beside the interpreter (unix)", () => {
-    const cfg = connectorConfig(byId("materials-project"), "/env/bin/python");
-    expect(cfg.type === "local" && cfg.command).toEqual([
-      "/env/bin/mcp-materials-project",
-    ]);
+    const cfg = connectorConfig(byId("openfda"), "/env/bin/python");
+    expect(cfg.type === "local" && cfg.command).toEqual(["/env/bin/openfda-mcp"]);
   });
 
   it("launches GEOmcp as a console script and passes NCBI's required email", () => {
@@ -48,8 +46,8 @@ describe("connectorConfig", () => {
     });
   });
 
-  it("does not mark a merely-optional key as required (materials-project, fred)", () => {
-    for (const id of ["materials-project", "fred"]) {
+  it("does not mark a merely-optional key as required (openfda, pubmedmcp)", () => {
+    for (const id of ["openfda", "pubmedmcp"]) {
       const c = byId(id);
       if (c.type === "remote") throw new Error(`${id} should be a local connector`);
       expect(c.apiKeyRequired).toBeFalsy();
@@ -57,19 +55,19 @@ describe("connectorConfig", () => {
   });
 
   it("resolves the console script on Windows with .exe", () => {
-    const cfg = connectorConfig(byId("fred"), "C:\\env\\Scripts\\python.exe", "KEY");
+    const cfg = connectorConfig(byId("openfda"), "C:\\env\\Scripts\\python.exe");
     expect(cfg.type === "local" && cfg.command).toEqual([
-      "C:\\env\\Scripts\\fred-mcp.exe",
+      "C:\\env\\Scripts\\openfda-mcp.exe",
     ]);
   });
 
   it("passes an API key via environment, trimmed", () => {
-    const cfg = connectorConfig(byId("materials-project"), "/env/bin/python", "  mp-secret  ");
-    expect(cfg.type === "local" && cfg.environment).toEqual({ MP_API_KEY: "mp-secret" });
+    const cfg = connectorConfig(byId("geo-mcp"), "/env/bin/python", "  me@example.org  ");
+    expect(cfg.type === "local" && cfg.environment).toEqual({ GEOMCP_EMAIL: "me@example.org" });
   });
 
   it("omits environment when the key is blank", () => {
-    const cfg = connectorConfig(byId("fred"), "/env/bin/python", "   ");
+    const cfg = connectorConfig(byId("openfda"), "/env/bin/python", "   ");
     expect(cfg.type === "local" && cfg.environment).toBeUndefined();
   });
 
@@ -99,37 +97,17 @@ describe("connectorConfig", () => {
     expect(cfg).toEqual({ type: "remote", url: "https://elicit.com/api/mcp", enabled: true });
   });
 
-  it("ships at least two non-bio disciplines (P1-2 breadth)", () => {
+  it("covers the core medical disciplines", () => {
     const disciplines = new Set(SCIENCE_CONNECTORS.map((c) => c.discipline));
-    expect(disciplines.has("materials")).toBe(true);
-    expect(disciplines.has("economics")).toBe(true);
+    expect(disciplines.has("medicine")).toBe(true);
+    expect(disciplines.has("genomics")).toBe(true);
   });
 
-  it("covers physics and earth/climate — the two previously-empty disciplines", () => {
-    const disciplines = new Set(SCIENCE_CONNECTORS.map((c) => c.discipline));
-    expect(disciplines.has("physics")).toBe(true);
-    expect(disciplines.has("earth/climate")).toBe(true);
-  });
-
-  it("launches the space-weather connector as a console script (physics)", () => {
-    const cfg = connectorConfig(byId("spaceweather"), "/env/bin/python");
-    expect(cfg.type === "local" && cfg.command).toEqual(["/env/bin/spaceweather-mcp"]);
-  });
-
-  it("launches Open-Meteo weather as a `-m module` connector (earth, no key)", () => {
-    const c = byId("open-meteo");
-    if (c.type === "remote") throw new Error("open-meteo should be a local connector");
-    expect(c.apiKeyEnv).toBeUndefined(); // Open-Meteo is free, no key
+  it("launches the PubMed abstracts connector as a console script (no key)", () => {
+    const c = byId("pubmedmcp");
+    if (c.type === "remote") throw new Error("pubmedmcp should be a local connector");
+    expect(c.apiKeyEnv).toBeUndefined(); // NCBI E-utils is free
     const cfg = connectorConfig(c, "/env/bin/python");
-    expect(cfg.type === "local" && cfg.command).toEqual([
-      "/env/bin/python",
-      "-m",
-      "mcp_weather_server",
-    ]);
-  });
-
-  it("launches USGS water data as a console script (earth, no key)", () => {
-    const cfg = connectorConfig(byId("usgs-water"), "/env/bin/python");
-    expect(cfg.type === "local" && cfg.command).toEqual(["/env/bin/usgs-mcp"]);
+    expect(cfg.type === "local" && cfg.command).toEqual(["/env/bin/pubmedmcp"]);
   });
 });

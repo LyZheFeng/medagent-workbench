@@ -610,13 +610,13 @@
     "opened": "Fenster für die Berechtigungen geöffnet.",
     "error": "Computersteuerung",
     "accessibility": "Bedienungshilfen",
-    "accessibilityHint": "Erforderlich. Erlaubt dem Helfer, die Oberfläche einer App zu lesen und zu bedienen. Die Berechtigung erhält Open Science Computer Use — ein eigenständiger Helfer — und nicht die gesamte Workbench.",
+    "accessibilityHint": "Erforderlich. Erlaubt dem Helfer, die Oberfläche einer App zu lesen und zu bedienen. Die Berechtigung erhält 医学智能体工作台 Computer Use — ein eigenständiger Helfer — und nicht die gesamte Workbench.",
     "screenshots": "Bildschirmaufnahme",
-    "screenshotsHint": "Optional, und sie wird Open Science selbst erteilt, nicht dem Helfer — macOS rechnet die Bildschirmaufnahme der App zu, welche die Anfrage gestartet hat. Nur nötig, wenn der Agent ein Fenster ansehen muss, das er nicht als Text lesen kann, etwa ein Diagramm oder eine Zeichenfläche."
+    "screenshotsHint": "Optional, und sie wird 医学智能体工作台 selbst erteilt, nicht dem Helfer — macOS rechnet die Bildschirmaufnahme der App zu, welche die Anfrage gestartet hat. Nur nötig, wenn der Agent ein Fenster ansehen muss, das er nicht als Text lesen kann, etwa ein Diagramm oder eine Zeichenfläche."
   },
   "userBrowser": {
     "title": "Ein Browser, den du installiert hast",
-    "hint": "Open Science hat auf diesem Mac einen Browser gefunden, den sein Agent von der Shell aus steuern kann. Hier gibt es nichts einzustellen — es steht hier, damit du weißt, dass er erreichbar ist.",
+    "hint": "医学智能体工作台 hat auf diesem Mac einen Browser gefunden, den sein Agent von der Shell aus steuern kann. Hier gibt es nichts einzustellen — es steht hier, damit du weißt, dass er erreichbar ist.",
     "name": "ego lite",
     "reachable": "Installiert und erreichbar. Der Agent fragt vor der ersten Nutzung in jeder Unterhaltung.",
     "notReachable": "Installiert, aber sein Kommandozeilenwerkzeug fehlt auf diesem Rechner, also kommt der Agent nicht heran. Führe die Einrichtung von ego lite aus, um es nachzurüsten.",

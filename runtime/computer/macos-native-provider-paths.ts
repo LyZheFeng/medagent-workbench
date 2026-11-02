@@ -6,7 +6,7 @@ import { computerUseProviderPath } from './provider-root'
  *  inside the app, because macOS grants Accessibility and Screen Recording per
  *  bundle identifier: this is the identity the user sees in System Settings and
  *  the only thing that holds those two grants. */
-export const MACOS_COMPUTER_USE_APP_NAME = 'Open Science Computer Use.app'
+export const MACOS_COMPUTER_USE_APP_NAME = '医学智能体工作台 Computer Use.app'
 
 export const MACOS_COMPUTER_USE_BUNDLE_ID = 'com.ai4s.workbench.computer-use'
 

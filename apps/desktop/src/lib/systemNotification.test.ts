@@ -23,7 +23,7 @@ describe("notifyPermissionRequest", () => {
 
     expect(notificationPlugin.requestPermission).not.toHaveBeenCalled();
     expect(notificationPlugin.sendNotification).toHaveBeenCalledWith({
-      title: "Open Science needs your approval",
+      title: "医学智能体工作台请求您的批准",
       body: "bash\nnpm install",
     });
   });
@@ -38,7 +38,7 @@ describe("notifyPermissionRequest", () => {
 
     expect(notificationPlugin.requestPermission).toHaveBeenCalledTimes(1);
     expect(notificationPlugin.sendNotification).toHaveBeenCalledWith({
-      title: "Open Science needs your approval",
+      title: "医学智能体工作台请求您的批准",
       body: "webfetch\nhttps://example.com",
     });
   });

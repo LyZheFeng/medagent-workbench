@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Open Science",
+  "productName": "医学智能体工作台",
   "version": "0.7.1",
   "identifier": "com.ai4s.workbench",
   "build": {
@@ -13,7 +13,7 @@
   "app": {
     "windows": [
       {
-        "title": "Open Science",
+        "title": "医学智能体工作台",
         "width": 1440,
         "height": 900,
         "minWidth": 1000,
@@ -70,7 +70,8 @@
       "../../../runtime/opencode-profile/command": "profile/command/",
       "../../../runtime/harness": "harness/",
     "../../../runtime/acp-server": "acp-server/",
-      "../../../examples/climate-trends": "examples/climate-trends/"
+      "../../../examples/climate-trends": "examples/climate-trends/",
+      "../../../examples/clinical-diagnostics": "examples/clinical-diagnostics/"
     },
     "icon": [
       "icons/32x32.png",

@@ -22,35 +22,35 @@ describe("WorkflowStarters", () => {
     failInstall = false;
   });
 
-  it("renders one card per starter workflow, including the climate example", () => {
+  it("renders one card per starter workflow, including the clinical example", () => {
     render(<WorkflowStarters onPick={() => {}} />);
     // Titles are i18n-translated (session:starters.<id>.title); WORKFLOW_STARTERS
     // itself no longer carries display copy, only ids/prompts — assert the
     // rendered English text directly.
-    expect(screen.getByText("Run a demo analysis, end to end")).toBeInTheDocument();
-    expect(screen.getByText("Analyze my data")).toBeInTheDocument();
-    expect(screen.getByText("Audit a report for traceability")).toBeInTheDocument();
-    expect(screen.getByText("Explore an example: climate trends")).toBeInTheDocument();
+    expect(screen.getByText("Run a demo diagnostic-accuracy analysis, end to end")).toBeInTheDocument();
+    expect(screen.getByText("Analyze my clinical data")).toBeInTheDocument();
+    expect(screen.getByText("Audit a medical report for traceability")).toBeInTheDocument();
+    expect(screen.getByText("Explore an example: diagnostic-accuracy study")).toBeInTheDocument();
     expect(WORKFLOW_STARTERS).toHaveLength(4);
   });
 
   it("sends the full-workflow prompt on click", async () => {
     const onPick = vi.fn();
     render(<WorkflowStarters onPick={onPick} />);
-    await userEvent.click(screen.getByText("Run a demo analysis, end to end"));
+    await userEvent.click(screen.getByText("Run a demo diagnostic-accuracy analysis, end to end"));
     await waitFor(() => expect(onPick).toHaveBeenCalledWith(expect.stringContaining("figure1.png")));
     expect(onPick.mock.calls[0][0]).toContain("report.md");
     expect(installCalls).toHaveLength(0);
   });
 
-  it("installs the example files before sending the climate prompt", async () => {
+  it("installs the example files before sending the clinical prompt", async () => {
     const onPick = vi.fn();
     render(<WorkflowStarters onPick={onPick} />);
 
-    await userEvent.click(screen.getByText("Explore an example: climate trends"));
+    await userEvent.click(screen.getByText("Explore an example: diagnostic-accuracy study"));
     await waitFor(() => expect(onPick).toHaveBeenCalledTimes(1));
-    expect(installCalls).toEqual(["climate-trends"]);
-    expect(onPick.mock.calls[0][0]).toContain("gistemp_global_means.csv");
+    expect(installCalls).toEqual(["clinical-diagnostics"]);
+    expect(onPick.mock.calls[0][0]).toContain("diagnostic_test.csv");
   });
 
   it("does not send the prompt when the example install fails", async () => {
@@ -58,7 +58,7 @@ describe("WorkflowStarters", () => {
     const onPick = vi.fn();
     render(<WorkflowStarters onPick={onPick} />);
 
-    await userEvent.click(screen.getByText("Explore an example: climate trends"));
+    await userEvent.click(screen.getByText("Explore an example: diagnostic-accuracy study"));
     await waitFor(() => expect(installCalls).toHaveLength(1));
     expect(onPick).not.toHaveBeenCalled();
   });

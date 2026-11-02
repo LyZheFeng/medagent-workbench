@@ -210,24 +210,24 @@
   },
   "starters": {
     "newSession": "새 세션",
-    "heading": "무엇을 살펴볼까요?",
-    "subheading": "아래에 분석 내용을 설명하거나, 다음 중 하나로 시작해 보세요.",
-    "subheadingNoCards": "아래에 분석 내용을 설명해 주세요.",
+    "heading": "오늘은 어떤 임상 질문을 볼까요?",
+    "subheading": "아래에 분석을 설명하거나 — 이 의료 워크플로 중 하나로 시작하세요.",
+    "subheadingNoCards": "아래에 분석을 설명하세요.",
     "demo": {
-      "title": "데모 분석을 처음부터 끝까지 실행",
-      "description": "데이터셋을 시뮬레이션하고, 모델을 적합시키고, 그림과 추적 가능한 리포트를 생성합니다."
+      "title": "진단 정확도 데모 분석을 처음부터 끝까지 실행",
+      "description": "데이터셋을 시뮬레이션하고 민감도/특이도와 신뢰구간을 계산하며, 그림과 추적 가능한 보고서를 만듭니다."
     },
     "analyze": {
-      "title": "내 데이터 분석",
-      "description": "추가한 파일을 에이전트에게 지정하면 그림과 리포트를 받을 수 있습니다."
+      "title": "내 임상 데이터 분석",
+      "description": "추가한 CSV/검사/추적 파일을 에이전트에게 지정하면 그림과 보고서를 받습니다."
     },
     "audit": {
-      "title": "리포트 추적성 감사",
-      "description": "인용, 출처 없는 수치, 그림과 코드 간 일치 여부를 확인합니다."
+      "title": "의학 보고서 추적성 감사",
+      "description": "인용, 출처 없는 통계 수치, 그림-코드 일관성(STROBE/CONSORT/CARE)을 확인합니다."
     },
-    "example-climate": {
-      "title": "예제 살펴보기: 기후 변화 추세",
-      "description": "실제 NASA GISTEMP 데이터 — 추세, 연대별 비교, 그림, 리포트."
+    "example-clinical": {
+      "title": "예제: 진단 정확도 연구",
+      "description": "소규모 진단 정확도 데이터셋 — 민감도/특이도, ROC 곡선, 그림, 보고서."
     },
     "error": {
       "setup": "예제를 설정할 수 없습니다: {{message}}"

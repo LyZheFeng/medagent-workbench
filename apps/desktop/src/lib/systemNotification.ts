@@ -29,7 +29,7 @@ export async function notifyPermissionRequest(input: PermissionNotificationInput
 
   try {
     sendNotification({
-      title: "Open Science needs your approval",
+      title: "医学智能体工作台请求您的批准",
       body: permissionBody(input),
     });
     return true;

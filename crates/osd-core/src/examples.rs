@@ -7,7 +7,7 @@ use crate::env::Env;
 use crate::runtime::workspace_dir;
 
 /// Bundled example projects; the command rejects anything else.
-const EXAMPLES: &[&str] = &["climate-trends"];
+const EXAMPLES: &[&str] = &["climate-trends", "clinical-diagnostics"];
 
 /// Copy `src` into `dst` recursively WITHOUT overwriting existing files — a
 /// re-installed example must never clobber the user's edited copy.

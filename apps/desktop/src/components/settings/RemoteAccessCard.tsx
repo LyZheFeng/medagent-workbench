@@ -326,7 +326,7 @@ function acpAgentEntry(script: string, url: string, token: string): string {
   return JSON.stringify(
     {
       agent_servers: {
-        "Open Science": {
+        "医学智能体工作台": {
           command: "node",
           args: [script, "--url", url],
           env: { OPENSCIENCE_GATEWAY_TOKEN: token },

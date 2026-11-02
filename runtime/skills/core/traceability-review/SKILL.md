@@ -83,3 +83,13 @@ cards; keep it as the LAST thing in the message):
 - Evidence: the exact identifier / quoted sentence / file paths, plus what you
   observed.
 - The note must never claim the document has no errors.
+
+## Medical addendum
+
+When the audited document is a **medical** report/manuscript, additionally
+check reporting-guideline compliance: STROBE (observational), CONSORT (trials),
+CARE (case reports), STARD (diagnostic accuracy), PRISMA (reviews) — flag the
+absence of a guideline checklist, of a trial-registration number (NCT), of an
+ethics/consent statement, and of CIs on headline effect estimates. Use the
+citation-reviewer skill for per-citation verification.
+

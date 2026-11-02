@@ -2,7 +2,7 @@
   "name": "ai4s-workbench",
   "version": "0.7.1",
   "private": true,
-  "description": "Open Science Desktop — local-first, model-agnostic AI research workbench for macOS, Windows and Linux.",
+  "description": "医学智能体工作台 (MedAgent Workbench) — 本地优先、模型无关的医学 AI 智能体研究工作台。",
   "license": "MIT",
   "scripts": {
     "dev": "pnpm --filter @ai4s/desktop dev",

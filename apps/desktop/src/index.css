@@ -30,7 +30,7 @@
   --border-faint: #efece5;
   --text: #2a2723;
   --muted: #8c877d;
-  --accent: #c15f3c;
+  --accent: #0f766e;
   --accent-fg: #ffffff;
   --link: #2a6fdb;
   --warn: #c98a2b;
@@ -81,9 +81,9 @@
   --term-ansi-15: #e9e4da;
 }
 
-/* Light — clean white with neutral (cool) grays and a blue accent (the warm
-   terracotta belongs to the warm theme); same chart hues as warm since both
-   sit on a white chart surface. */
+/* Light — clean white with neutral (cool) grays and a medical-teal accent
+   (the warm terracotta belongs to the warm theme); same chart hues as warm
+   since both sit on a white chart surface. */
 [data-theme="light"] {
   --bg: #ffffff;
   --surface: #ffffff;
@@ -92,9 +92,9 @@
   --border-faint: #f0f0f3;
   --text: #1f1f24;
   --muted: #8a8a93;
-  --accent: #2563eb;
+  --accent: #0e7490;
   --accent-fg: #ffffff;
-  --link: #2a6fdb;
+  --link: #0e7490;
   --warn: #c98a2b;
   --ok: #4b8b5b;
   --error: #c0564b;
@@ -140,8 +140,9 @@
   --term-ansi-15: #eef0f3;
 }
 
-/* Dark — neutral-cool like light, so it shares light's blue accent (stepped
-   up for the dark surface; dark text on the filled accent keeps contrast). */
+/* Dark — neutral-cool like light, so it shares light's medical-teal accent
+   (stepped up for the dark surface; dark text on the filled accent keeps
+   contrast). */
 [data-theme="dark"] {
   /* Default variant, "dimmed": a cool slate a step above black, with text
      softened from near-white, so long sessions do not glare. */
@@ -152,7 +153,7 @@
   --border-faint: #2a3038;
   --text: #d1d7e0;
   --muted: #8b949e;
-  --accent: #539bf5;
+  --accent: #3fb3c9;
   --accent-fg: #1c2128;
   --link: #6cb6ff;
   --warn: #d7a24a;
@@ -270,7 +271,7 @@
   --border-faint: #2f2f35;
   --text: #e2e1de;
   --muted: #9d9a94;
-  --accent: #5aa5f6;
+  --accent: #4fb3c7;
   --accent-fg: #202024;
   --link: #86aef0;
   --ok: #7cbf8c;

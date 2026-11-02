@@ -214,24 +214,24 @@
   },
   "starters": {
     "newSession": "Nueva sesión",
-    "heading": "¿Qué deberíamos investigar?",
-    "subheading": "Describe tu análisis a continuación, o empieza con una de estas opciones.",
-    "subheadingNoCards": "Describe tu análisis a continuación.",
+    "heading": "¿Qué pregunta clínica investigamos hoy?",
+    "subheading": "Describe tu análisis abajo — o empieza por uno de estos flujos médicos.",
+    "subheadingNoCards": "Describe tu análisis abajo.",
     "demo": {
-      "title": "Ejecutar un análisis de demostración de principio a fin",
-      "description": "Simula un conjunto de datos, ajusta un modelo y produce una figura y un informe trazable."
+      "title": "Ejecutar un análisis demo de exactitud diagnóstica, de principio a fin",
+      "description": "Simular un conjunto de datos, calcular sensibilidad/especificidad con IC y producir una figura y un informe trazable."
     },
     "analyze": {
-      "title": "Analizar mis datos",
-      "description": "Indica al agente un archivo que hayas añadido; obtén figuras y un informe."
+      "title": "Analizar mis datos clínicos",
+      "description": "Señala un archivo CSV/laboratorio/seguimiento añadido; recibe figuras y un informe."
     },
     "audit": {
-      "title": "Auditar un informe para verificar su trazabilidad",
-      "description": "Comprueba citas, cifras sin fuente y la coherencia entre figuras y código."
+      "title": "Auditar la trazabilidad de un informe médico",
+      "description": "Comprobar citas, estadísticas sin fuente y coherencia figura-código (STROBE/CONSORT/CARE)."
     },
-    "example-climate": {
-      "title": "Explorar un ejemplo: tendencias climáticas",
-      "description": "Datos reales de NASA GISTEMP — tendencia, comparación decenal, figura e informe."
+    "example-clinical": {
+      "title": "Ejemplo: estudio de exactitud diagnóstica",
+      "description": "Un pequeño conjunto de datos de exactitud diagnóstica — sensibilidad/especificidad, curva ROC, figura e informe."
     },
     "error": {
       "setup": "No se pudo configurar el ejemplo: {{message}}"

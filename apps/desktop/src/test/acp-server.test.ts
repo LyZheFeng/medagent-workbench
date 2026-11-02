@@ -105,7 +105,7 @@ async function connectedPair(opts?: { history?: HistoryMessage[]; clientCwd?: st
 describe("Open Science as an ACP agent", () => {
   it("introduces itself and advertises only what it can actually do", async () => {
     const { client } = await connectedPair();
-    expect(client.displayName).toBe("Open Science");
+    expect(client.displayName).toBe("医学智能体工作台");
     // The runtime really does keep conversations, so these are honest.
     expect(client.supportsSessionReplay).toBe(true);
     expect(client.supportsSessionList).toBe(true);

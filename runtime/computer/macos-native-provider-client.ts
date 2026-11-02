@@ -146,7 +146,7 @@ export class MacOSNativeProviderClient {
     const id = this.nextId++
     const helperAppPath = resolveMacOSComputerUseAppPath()
     if (!helperAppPath) {
-      throw new RuntimeClientError('accessibility_error', 'Open Science Computer Use.app was not found')
+      throw new RuntimeClientError('accessibility_error', '医学智能体工作台 Computer Use.app was not found')
     }
     const transport = await this.ensureSocketStarted(helperAppPath)
     const token = this.socketToken

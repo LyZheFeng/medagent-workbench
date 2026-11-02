@@ -740,7 +740,7 @@ export async function agentBrowserProfiles(): Promise<BrowserProfile[]> {
   }
 }
 
-/** Close every browser session in Open Science Desktop's private namespace. */
+/** Close every browser session in 医学智能体工作台的私有命名空间. */
 export async function closeAgentBrowser(): Promise<void> {
   if (!isTauri) return;
   const { invoke } = await import("@tauri-apps/api/core");

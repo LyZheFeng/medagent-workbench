@@ -210,24 +210,24 @@
   },
   "starters": {
     "newSession": "新建会话",
-    "heading": "我们该研究什么？",
-    "subheading": "在下方描述您的分析——或从以下选项开始。",
+    "heading": "今天研究什么临床问题？",
+    "subheading": "在下方描述您的分析——或从以下医学工作流开始。",
     "subheadingNoCards": "在下方描述您的分析。",
     "demo": {
-      "title": "端到端运行一次演示分析",
-      "description": "模拟一份数据集，拟合模型，并生成图表和可追溯的报告。"
+      "title": "运行一次诊断试验演示分析",
+      "description": "模拟一份数据集，计算敏感度/特异度与置信区间，生成图表和可溯源的报告。"
     },
     "analyze": {
-      "title": "分析我的数据",
-      "description": "让代理处理您添加的文件；获取图表和报告。"
+      "title": "分析我的临床数据",
+      "description": "让智能体处理您添加的 CSV/化验/随访数据；获得图表和报告。"
     },
     "audit": {
-      "title": "审查报告的可追溯性",
-      "description": "检查引用、无来源数字，以及图表与代码的一致性。"
+      "title": "审查医学报告的可溯源性",
+      "description": "检查引用、无来源统计数字，以及图表与代码的一致性（STROBE/CONSORT/CARE）。"
     },
-    "example-climate": {
-      "title": "探索示例：气候趋势",
-      "description": "真实的 NASA GISTEMP 数据——趋势、十年对比、图表和报告。"
+    "example-clinical": {
+      "title": "示例项目：诊断试验数据分析",
+      "description": "小型诊断试验数据——敏感度/特异度、ROC 曲线、图表与报告。"
     },
     "error": {
       "setup": "无法设置示例：{{message}}"

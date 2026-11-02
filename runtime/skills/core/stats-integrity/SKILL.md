@@ -84,3 +84,12 @@ the gate checks specific risks only.
 
 Add a `check_<name>(...)` function in `stats_integrity_check.py` and call it from
 `run()`; each finding carries its own `tag`, so the app needs no change.
+
+## Medical addendum
+
+When the analysis is **medical/clinical**: never drop indeterminate diagnostic
+results from a 2x2 table (report them separately, STARD); PPV/NPV must appear
+with the study prevalence; headline effects need 95% CIs; subgroup findings are
+labelled exploratory unless pre-registered; and no causal language from
+cross-sectional data. See the medical-stats skill for the standard computations.
+

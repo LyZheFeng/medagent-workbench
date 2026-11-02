@@ -21,40 +21,48 @@ export const WORKFLOW_STARTERS: WorkflowStarter[] = [
     id: "demo",
     icon: <FlaskConical size={17} strokeWidth={1.75} />,
     prompt:
-      "Run a complete demo analysis end to end: simulate a small dose–response dataset in Python, " +
-      "analyze it (fit + summary statistics), save one publication-quality figure as demo_analysis/figure1.png, " +
-      "and write demo_analysis/report.md summarizing the findings — every number in the report must come from " +
-      "the code you ran. Keep all files in the workspace.",
+      "Run a complete diagnostic-accuracy demo analysis end to end: simulate a small " +
+      "diagnostic-test dataset in Python (index test result vs gold standard, e.g. 200 patients " +
+      "with disease status), compute sensitivity, specificity, PPV, NPV and likelihood ratios " +
+      "with 95% confidence intervals, save one publication-quality figure (ROC curve) as " +
+      "demo_analysis/figure1.png, and write demo_analysis/report.md summarizing the findings " +
+      "following STARD-style reporting — every number in the report must come from the code you " +
+      "ran. Keep all files in the workspace.",
   },
   {
     id: "analyze",
     icon: <LineChart size={17} strokeWidth={1.75} />,
     prompt:
-      "Analyze the data file I added to the workspace end to end: explore it, run the analysis in code, " +
-      "save at least one figure as a PNG, and write report.md with the findings — every number traced to " +
-      "the code that produced it. Ask me which file to use if there is more than one candidate.",
+      "Analyze the clinical data file I added to the workspace end to end: explore it (cohort " +
+      "characteristics, missing data), run the analysis in code (baseline table, outcome " +
+      "analysis, at least one figure saved as a PNG), and write report.md with the findings in " +
+      "STROBE-aligned structure — every number traced to the code that produced it. Ask me which " +
+      "file to use if there is more than one candidate.",
   },
   {
     id: "audit",
     icon: <FileSearch size={17} strokeWidth={1.75} />,
     prompt:
-      "Use the traceability-review skill to audit the report or manuscript in my workspace: resolve every " +
-      "citation, flag numbers with no traceable source, and check figures against the code that generated them. " +
-      "Ask me which document to audit if there is more than one candidate.",
+      "Use the traceability-review skill to audit the medical report or manuscript in my " +
+      "workspace: resolve every citation, flag statistics with no traceable source (sensitivity, " +
+      "p-values, hazard ratios, confidence intervals), and check figures against the code that " +
+      "generated them. Also check reporting-guideline compliance (STROBE for observational, " +
+      "CONSORT for trials, CARE for case reports). Ask me which document to audit if there is " +
+      "more than one candidate.",
   },
   {
-    id: "example-climate",
+    id: "example-clinical",
     icon: <Globe2 size={17} strokeWidth={1.75} />,
     prompt:
-      "Analyze the real climate dataset at climate-trends/data/gistemp_global_means.csv " +
-      "(NASA GISTEMP v4 global land–ocean temperature anomalies in °C vs the 1951–1980 mean; " +
-      "the header is on line 2 and missing values are `***` — see climate-trends/README.md). " +
-      "Load the annual J-D series, quantify the warming rate (°C/decade) over the full record and " +
-      "over 1975–present, compare decadal means, save one publication-quality figure as " +
-      "climate-trends/warming_trend.png, and write climate-trends/report.md citing the dataset " +
-      "source — every number must come from the code you ran.",
+      "Analyze the diagnostic-accuracy dataset at clinical-diagnostics/data/diagnostic_test.csv " +
+      "(simulated study: 200 patients, index test score vs gold-standard disease status — see " +
+      "clinical-diagnostics/README.md). Compute sensitivity, specificity, PPV, NPV and " +
+      "likelihood ratios with 95% CIs across candidate cutoffs, choose an optimal cutoff with " +
+      "Youden's index, plot the ROC curve as clinical-diagnostics/roc_curve.png, and write " +
+      "clinical-diagnostics/report.md citing the dataset provenance — every number must come " +
+      "from the code you ran.",
     prepare: async () => {
-      if (isTauri) await installExample("climate-trends");
+      if (isTauri) await installExample("clinical-diagnostics");
     },
   },
 ];
@@ -81,9 +89,9 @@ export function WorkflowStarters({
     demo: { title: t("starters.demo.title"), description: t("starters.demo.description") },
     analyze: { title: t("starters.analyze.title"), description: t("starters.analyze.description") },
     audit: { title: t("starters.audit.title"), description: t("starters.audit.description") },
-    "example-climate": {
-      title: t("starters.example-climate.title"),
-      description: t("starters.example-climate.description"),
+    "example-clinical": {
+      title: t("starters.example-clinical.title"),
+      description: t("starters.example-clinical.description"),
     },
   };
   return (

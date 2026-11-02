@@ -610,13 +610,13 @@
     "opened": "Opened the permission setup window.",
     "error": "Computer Use",
     "accessibility": "Accessibility",
-    "accessibilityHint": "Required. Lets the helper read an app's interface and act on it. Granted to Open Science Computer Use — a separate helper — not to the whole workbench.",
+    "accessibilityHint": "Required. Lets the helper read an app's interface and act on it. Granted to 医学智能体工作台 Computer Use — a separate helper — not to the whole workbench.",
     "screenshots": "Screen Recording",
-    "screenshotsHint": "Optional, and granted to Open Science itself rather than to the helper — macOS attributes screen capture to the app that started the request. Only needed when the agent has to look at a window it cannot read as text, such as a plot or a canvas."
+    "screenshotsHint": "Optional, and granted to 医学智能体工作台 itself rather than to the helper — macOS attributes screen capture to the app that started the request. Only needed when the agent has to look at a window it cannot read as text, such as a plot or a canvas."
   },
   "userBrowser": {
     "title": "A browser you installed",
-    "hint": "Open Science found a browser on this Mac that its agent can drive from the shell. Nothing to configure — this is here so you know it can be reached.",
+    "hint": "医学智能体工作台 found a browser on this Mac that its agent can drive from the shell. Nothing to configure — this is here so you know it can be reached.",
     "name": "ego lite",
     "reachable": "Installed and reachable. The agent will ask before the first use in a conversation.",
     "notReachable": "Installed, but its command-line tool is not on this machine, so the agent cannot reach it. Run ego lite's own setup to add it.",

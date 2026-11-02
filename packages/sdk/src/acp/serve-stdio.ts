@@ -124,9 +124,9 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
   const token = flag("token") ?? process.env.OPENSCIENCE_GATEWAY_TOKEN ?? "";
   if (!url || !token) {
     process.stderr.write(
-      "Open Science ACP server: --url and --token are required " +
+      "医学智能体工作台 ACP 服务:需要 --url 和 --token " +
         "(or OPENSCIENCE_GATEWAY_URL / OPENSCIENCE_GATEWAY_TOKEN).\n" +
-        "Both are shown in Open Science → Settings → Remote Access.\n",
+        "两者显示于「医学智能体工作台 → 设置 → 远程访问」。\n",
     );
     process.exitCode = 2;
     return;
@@ -135,9 +135,9 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
     await serveStdio({ url, token, version: flag("version") });
   } catch (err) {
     process.stderr.write(
-      `Open Science ACP server: could not reach the desktop app at ${url} — ` +
+      `医学智能体工作台 ACP 服务:无法连接桌面应用 ${url} — ` +
         `${err instanceof Error ? err.message : String(err)}\n` +
-        "Is Open Science running with remote access enabled?\n",
+        "桌面应用是否已开启远程访问?\n",
     );
     process.exitCode = 1;
   }

@@ -214,24 +214,24 @@
   },
   "starters": {
     "newSession": "Nouvelle session",
-    "heading": "Que devrions-nous explorer ?",
-    "subheading": "Décrivez votre analyse ci-dessous — ou partez de l'un de ces exemples.",
+    "heading": "Quelle question clinique étudier aujourd'hui ?",
+    "subheading": "Décrivez votre analyse ci-dessous — ou commencez par l'un de ces flux médicaux.",
     "subheadingNoCards": "Décrivez votre analyse ci-dessous.",
     "demo": {
-      "title": "Exécuter une analyse de démonstration, de bout en bout",
-      "description": "Simuler un jeu de données, ajuster un modèle, et produire une figure et un rapport traçable."
+      "title": "Exécuter une analyse de démonstration de précision diagnostique",
+      "description": "Simuler un jeu de données, calculer sensibilité/spécificité avec IC, produire une figure et un rapport traçable."
     },
     "analyze": {
-      "title": "Analyser mes données",
-      "description": "Indiquez à l'agent un fichier que vous avez ajouté ; obtenez des figures et un rapport en retour."
+      "title": "Analyser mes données cliniques",
+      "description": "Désignez un fichier CSV/biologie/suivi ajouté ; recevez des figures et un rapport."
     },
     "audit": {
-      "title": "Auditer un rapport pour sa traçabilité",
-      "description": "Vérifier les citations, les chiffres non sourcés et la cohérence entre figures et code."
+      "title": "Vérifier la traçabilité d'un rapport médical",
+      "description": "Contrôler citations, statistiques sans source et cohérence figure-code (STROBE/CONSORT/CARE)."
     },
-    "example-climate": {
-      "title": "Explorer un exemple : tendances climatiques",
-      "description": "Données réelles NASA GISTEMP — tendance, comparaison décennale, figure et rapport."
+    "example-clinical": {
+      "title": "Exemple : étude de précision diagnostique",
+      "description": "Un petit jeu de données de précision diagnostique — sensibilité/spécificité, courbe ROC, figure et rapport."
     },
     "error": {
       "setup": "Impossible de configurer l'exemple : {{message}}"

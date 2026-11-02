@@ -214,24 +214,24 @@
   },
   "starters": {
     "newSession": "New session",
-    "heading": "What should we look into?",
-    "subheading": "Describe your analysis below — or start from one of these.",
+    "heading": "What clinical question shall we look into?",
+    "subheading": "Describe your analysis below — or start from one of these medical workflows.",
     "subheadingNoCards": "Describe your analysis below.",
     "demo": {
-      "title": "Run a demo analysis, end to end",
-      "description": "Simulate a dataset, fit a model, and produce a figure and a traceable report."
+      "title": "Run a demo diagnostic-accuracy analysis, end to end",
+      "description": "Simulate a dataset, compute sensitivity/specificity with CIs, and produce a figure and a traceable report."
     },
     "analyze": {
-      "title": "Analyze my data",
-      "description": "Point the agent at a file you added; get figures and a report back."
+      "title": "Analyze my clinical data",
+      "description": "Point the agent at a CSV/lab/follow-up file you added; get figures and a report back."
     },
     "audit": {
-      "title": "Audit a report for traceability",
-      "description": "Check citations, unsourced numbers, and figure-versus-code consistency."
+      "title": "Audit a medical report for traceability",
+      "description": "Check citations, unsourced statistics, and figure-versus-code consistency (STROBE/CONSORT/CARE)."
     },
-    "example-climate": {
-      "title": "Explore an example: climate trends",
-      "description": "Real NASA GISTEMP data — trend, decadal comparison, figure, and report."
+    "example-clinical": {
+      "title": "Explore an example: diagnostic-accuracy study",
+      "description": "A small diagnostic-accuracy dataset — sensitivity/specificity, ROC curve, figure, and report."
     },
     "error": {
       "setup": "Could not set up the example: {{message}}"

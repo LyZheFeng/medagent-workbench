@@ -60,6 +60,14 @@ deterministic tooling and the exact finding vocabulary:
 - **integrity-auditor** — for a finished paper-shaped artifact, when image or
   numerical anomalies are in scope.
 
+- **medical-stats / citation-reviewer** — when the workspace is a clinical
+  study: indeterminate diagnostic results dropped from a 2x2 table, PPV/NPV
+  quoted without the study prevalence, effect sizes without 95% CIs,
+  subgroup claims presented as confirmatory, missing ethics/consent statement
+  or trial-registration number, and reporting-guideline mismatch (STROBE /
+  CONSORT / CARE / STARD / PRISMA). Route per-citation checks through
+  citation-reviewer.
+
 Beyond the skills, always ask:
 
 - Can this be re-run? Are inputs, versions and seeds pinned, or does the result

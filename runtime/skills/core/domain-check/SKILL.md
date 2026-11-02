@@ -124,3 +124,10 @@ known error classes only.
 Add a `check_<field>(ctx)` function in `domain_check.py` and append it to
 `VALIDATORS`. No other change is needed — the review contract and the app's
 rendering are discipline-agnostic (each finding carries its own `tag`).
+
+- **medicine · clinical data** — a diagnostic 2x2 computed after dropping
+  indeterminate results, PPV/NPV reported without the study prevalence,
+  proportions without confidence intervals, a survival curve without censoring
+  counts, an uncorrected p-value panel across multiple endpoints, causal
+  language drawn from cross-sectional data. See the medical-stats skill.
+

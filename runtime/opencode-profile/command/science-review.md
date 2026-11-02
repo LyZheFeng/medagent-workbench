@@ -1,5 +1,5 @@
 ---
-description: review this workspace's finished work for scientific rigour (traceability, statistics, units, provenance)
+description: review this workspace's finished work for scientific rigour (traceability, statistics, units, provenance; medical studies also check STROBE/CONSORT/CARE compliance and citation validity)
 agent: reviewer
 ---
 

@@ -1,0 +1,1 @@
+{"artifact": "data/diagnostic_test.csv", "generated_by": "simulated", "seed": 2026, "n": 200, "model": "diseased N(0.72,0.13), healthy N(0.45,0.13), clipped to [0,1]", "prevalence_target": 0.4, "date": "2026-11-02", "note": "simulated demonstration data, not real patients"}

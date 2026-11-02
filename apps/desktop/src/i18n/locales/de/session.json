@@ -214,24 +214,24 @@
   },
   "starters": {
     "newSession": "Neue Sitzung",
-    "heading": "Was sollen wir untersuchen?",
-    "subheading": "Beschreiben Sie Ihre Analyse unten — oder beginnen Sie mit einem dieser Vorschläge.",
-    "subheadingNoCards": "Beschreiben Sie Ihre Analyse unten.",
+    "heading": "Welcher klinischen Frage gehen wir nach?",
+    "subheading": "Beschreiben Sie unten Ihre Analyse — oder starten Sie mit einem dieser medizinischen Workflows.",
+    "subheadingNoCards": "Beschreiben Sie unten Ihre Analyse.",
     "demo": {
-      "title": "Eine Demo-Analyse End-to-End ausführen",
-      "description": "Einen Datensatz simulieren, ein Modell anpassen und eine Abbildung sowie einen nachvollziehbaren Bericht erstellen."
+      "title": "Demo-Analyse zu diagnostischer Genauigkeit, Ende-zu-Ende",
+      "description": "Datensatz simulieren, Sensitivität/Spezifität mit Konfidenzintervallen berechnen, Abbildung und nachvollziehbaren Bericht erzeugen."
     },
     "analyze": {
-      "title": "Meine Daten analysieren",
-      "description": "Weisen Sie den Agenten auf eine hinzugefügte Datei hin; erhalten Sie Abbildungen und einen Bericht zurück."
+      "title": "Meine klinischen Daten analysieren",
+      "description": "Zeigen Sie dem Agenten eine hinzugefügte CSV/Labor-/Verlaufsdatei; Sie erhalten Abbildungen und einen Bericht."
     },
     "audit": {
-      "title": "Bericht auf Nachvollziehbarkeit prüfen",
-      "description": "Zitate, unbelegte Zahlen und die Übereinstimmung von Abbildung und Code prüfen."
+      "title": "Medizinischen Bericht auf Nachvollziehbarkeit prüfen",
+      "description": "Zitate, beleglose Statistikwerte und Abbildung-Code-Konsistenz prüfen (STROBE/CONSORT/CARE)."
     },
-    "example-climate": {
-      "title": "Ein Beispiel erkunden: Klimatrends",
-      "description": "Echte NASA-GISTEMP-Daten — Trend, Dekadenvergleich, Abbildung und Bericht."
+    "example-clinical": {
+      "title": "Beispiel: Studie zur diagnostischen Genauigkeit",
+      "description": "Ein kleiner Datensatz zur diagnostischen Genauigkeit — Sensitivität/Spezifität, ROC-Kurve, Abbildung und Bericht."
     },
     "error": {
       "setup": "Das Beispiel konnte nicht eingerichtet werden: {{message}}"
