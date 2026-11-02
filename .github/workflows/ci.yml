@@ -1,0 +1,71 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  frontend:
+    name: Typecheck & tests (desktop)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        run: pnpm --filter @ai4s/desktop typecheck
+
+      - name: Unit tests
+        run: pnpm --filter @ai4s/desktop test
+
+  rust:
+    name: Rust check (osd-core)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Check workspace (core + cli, desktop shell needs Tauri system deps)
+        run: cargo check -p osd-core -p osd-cli
+
+  i18n-parity:
+    name: i18n parity (7 locales)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # parity 是 i18n 测试套件的一部分;单列一个 job 让"翻译漏了哪个语言"
+      # 在 PR 的 required check 里一眼可见,而不是埋在前端测试输出里。
+      - name: Run i18n tests only
+        run: pnpm --filter @ai4s/desktop exec vitest run src/i18n
