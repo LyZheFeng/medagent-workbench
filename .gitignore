@@ -86,3 +86,9 @@ dist-desktop/
 # The app's own per-workspace state, written when this repo is opened as a
 # workspace. Machine inventories and run records are local, never source.
 .openscience/
+
+# Bundled Python runtime (scripts/dev/build-python-runtime.mjs); build artifact
+runtime/python-runtime/*
+!runtime/python-runtime/.gitkeep
+runtime/.python-build-cache/
+

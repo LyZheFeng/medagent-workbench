@@ -8,7 +8,7 @@
     "devUrl": "http://localhost:5173",
     "beforeDevCommand": "pnpm --filter @ai4s/desktop exec vite --port 5173 --strictPort",
     "beforeBuildCommand": "pnpm --filter @ai4s/desktop build",
-    "beforeBundleCommand": "node ../../scripts/dev/build-computer-use.mjs"
+    "beforeBundleCommand": "node ../../scripts/dev/build-python-runtime.mjs && node ../../scripts/dev/build-computer-use.mjs"
   },
   "app": {
     "windows": [

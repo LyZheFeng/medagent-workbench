@@ -1302,10 +1302,54 @@ pub fn enriched_path() -> String {
     parts.join(";")
 }
 
-/// On-disk path of a bundled sidecar (`externalBin`), if it is there. Tauri
-/// places them next to the app executable with the target-triple suffix
-/// stripped. Needed whenever something other than `ShellExt::sidecar` has to
-/// reach one: OpenCode spawning an MCP server by path, or a synchronous probe.
+/// Directory of the Python runtime bundled with the installer, when present.
+///
+/// The Windows installer ships `python-runtime/` next to the other resources
+/// because the medical skill scripts call `python` and a fresh Windows machine
+/// has none. A build without it (macOS/Linux today, or a source build that
+/// skipped `scripts/dev/build-python-runtime.mjs`) keeps the old behaviour: the
+/// agent uses whatever Python the user has.
+pub fn bundled_python_dir(env: &Env) -> Option<PathBuf> {
+    let dir = env.resource_dir().join("python-runtime");
+    let exe = if cfg!(windows) {
+        dir.join("python.exe")
+    } else {
+        dir.join("bin").join("python3")
+    };
+    exe.is_file().then_some(dir)
+}
+
+/// PATH for the OpenCode sidecar. The bundled medical Python comes first — it
+/// is the interpreter with matplotlib/openpyxl/docx/pptx/pypdf, so `python`
+/// inside a skill script resolves to the one the installer ships — then the
+/// user's enriched PATH stays available for everything else.
+pub fn agent_path(env: &Env) -> String {
+    let base = enriched_path();
+    match bundled_python_dir(env) {
+        Some(dir) => prepend_path(&dir, &base),
+        None => base,
+    }
+}
+
+fn prepend_path(dir: &Path, base: &str) -> String {
+    let separator = if cfg!(windows) { ';' } else { ':' };
+    format!("{}{}{}", dir.display(), separator, base)
+}
+
+#[cfg(test)]
+mod bundled_python_tests {
+    use super::prepend_path;
+    use std::path::Path;
+
+    #[test]
+    fn bundled_python_is_prepended_to_the_host_path() {
+        let separator = if cfg!(windows) { ';' } else { ':' };
+        assert_eq!(
+            prepend_path(Path::new("bundled"), "host"),
+            format!("bundled{separator}host")
+        );
+    }
+}
 pub fn sidecar_bin(name: &str) -> Option<PathBuf> {
     let exe = std::env::current_exe().ok()?;
     let file = if cfg!(windows) { format!("{name}.exe") } else { name.to_string() };
@@ -1901,6 +1945,17 @@ fn spawn_sidecar(env: &Env, port: u16, generation: u64) -> Result<Child, String>
     let bin = sidecar_bin("opencode")
         .ok_or_else(|| "bundled OpenCode binary not found next to the executable".to_string())?;
 
+    // The bundled medical Python (when this build ships one) must win over the
+    // host's: the skill scripts import matplotlib/openpyxl/docx from it, and a
+    // machine with an old Python otherwise fails with a traceback mid-review.
+    let agent_path_value = agent_path(env);
+    if let Some(dir) = bundled_python_dir(env) {
+        crate::debug_log::append(
+            env,
+            &format!("[python] bundled runtime first on agent PATH: {}", dir.display()),
+        );
+    }
+
     let mut cmd = quiet_command(bin);
     cmd.args(["serve", "--hostname", "127.0.0.1", "--port", port_str.as_str()])
         // Require auth on every request (P0-7): without a password the server
@@ -1919,8 +1974,9 @@ fn spawn_sidecar(env: &Env, port: u16, generation: u64) -> Result<Child, String>
         // the recording app version into provenance — they run outside the app
         // and can't otherwise know it.
         .env("OPENSCIENCE_APP_VERSION", env.version())
-        // GUI-launched apps get a minimal PATH; give the agent the user's real tools.
-        .env("PATH", enriched_path())
+        // GUI-launched apps get a minimal PATH; give the agent the user's real
+        // tools, after the bundled medical Python.
+        .env("PATH", agent_path_value)
         .current_dir(workspace)
         // OpenCode keeps its own log file (xdg-data/opencode/log/opencode.log),
         // so its stdout carries nothing worth a pipe — and an undrained pipe

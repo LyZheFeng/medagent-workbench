@@ -1,0 +1,39 @@
+# Python runtime bundled on Windows (scripts/dev/build-python-runtime.mjs).
+#
+# Pinned so a rebuild a month later resolves the same wheels; the versions were
+# frozen from `uv pip freeze` after installing the packages the medical skills
+# import directly:
+#   matplotlib  ROC / forest / KM / Bland-Altman rendering
+#   numpy       matplotlib's array layer
+#   openpyxl    xlsx read/write
+#   python-docx docx read/write
+#   python-pptx pptx read/write
+#   pypdf      PDF text extraction
+#   pdfplumber PDF layout extraction
+# Transitive pins are listed too, so `uv pip install -r` is reproducible.
+cffi==2.1.1
+charset-normalizer==3.5.2
+contourpy==1.4.0
+cryptography==50.0.2
+cycler==0.12.1
+et-xmlfile==2.0.0
+fonttools==4.68.0
+kiwisolver==1.5.1
+lxml==6.1.3
+matplotlib==3.11.2
+numpy==2.5.4
+openpyxl==3.1.5
+packaging==26.3
+pdfminer-six==20260107
+pdfplumber==0.11.10
+pillow==13.0.0
+pycparser==3.12
+pyparsing==3.3.3
+pypdf==7.1.0
+pypdfium2==5.15.2
+python-dateutil==4.0.0
+python-docx==1.2.0
+python-pptx==1.0.2
+typing-extensions==4.16.0
+tzdata==2026.6
+xlsxwriter==3.3.1
