@@ -540,7 +540,13 @@ mod tests {
         let moved = move_session_to_project(&env, id, &project.id).unwrap();
         assert_eq!(PathBuf::from(&moved.directory), project_dir);
         let link = PathBuf::from(moved.link.expect("its own folder is linked"));
-        assert_eq!(link, project_dir.join("move probe"));
+        // Where the link sits, and what it is called — not how the path happens
+        // to be spelled. `project_dir` came from `canonicalize`, which on Windows
+        // prefixes `\\?\`; the recorded link is the plain path, so comparing the
+        // two strings failed on Windows only. Canonicalizing the link itself is
+        // no use either: it resolves the link, which the next line checks.
+        assert_eq!(link.parent().unwrap().canonicalize().unwrap(), project_dir);
+        assert_eq!(link.file_name().unwrap(), std::ffi::OsStr::new("move probe"));
         assert_eq!(link.canonicalize().unwrap(), dated.canonicalize().unwrap());
 
         // Exactly one new entry in the project folder; the files are where they were.
