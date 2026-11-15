@@ -21,7 +21,6 @@ import {
   exampleOutcome,
   examplePrompt,
   filterProviders,
-  hasCompletedOnboarding,
   markOnboardingComplete,
   modelChoicesFor,
   offersOnboarding,
@@ -39,10 +38,11 @@ import { ZEN_PROVIDER_ID } from "@/lib/zenModels";
 
 type Step = "provider" | "key" | "model" | "example";
 
-/** The wizard is an on-ramp, not a surface: it runs once (per install) and its
- *  answers stay editable in Settings → Agents. Ordering with the compliance
- *  notice is decided by `FirstRun`: the legal statement is acknowledged first,
- *  and this dialog never renders on top of it. */
+/** The wizard is an on-ramp, not a surface: it runs until a provider or default
+ *  model exists (a skip only closes it for this run), and its answers stay
+ *  editable in Settings → Agents. Ordering with the compliance notice is decided
+ *  by `FirstRun`: the legal statement is acknowledged first, and this dialog
+ *  never renders on top of it. */
 export function OnboardingWizard({
   desktop = isTauri,
   web = isGatewayWeb,
@@ -120,11 +120,13 @@ export function OnboardingWizard({
     }
   };
 
-  // Decide once per app run, after the bundled runtime answers: an existing
-  // install has providers/default model and must never see this.
+  // Decide once per app run, after the bundled runtime answers. The decision
+  // is the configuration, not a localStorage flag: an install with no provider
+  // and no default model must meet the model-API setup on every launch until it
+  // has one. A previous "Set up later" only closes it for this run.
   useEffect(() => {
     if (decided.current) return;
-    if (!desktop || web || hasCompletedOnboarding()) {
+    if (!desktop || web) {
       decided.current = true;
       setOffer(false);
       return;
@@ -137,7 +139,7 @@ export function OnboardingWizard({
       await runtime.loadCatalog().catch(() => undefined);
       if (cancelled) return;
       const fresh = useRuntimeStore.getState();
-      if (!offersOnboarding(fresh.providers, fresh.defaultModel)) {
+      if (!offersOnboarding(fresh.providers)) {
         setOffer(false);
         return;
       }
@@ -152,8 +154,8 @@ export function OnboardingWizard({
   }, [desktop, web, status]);
 
   const choices = useMemo(
-    () => providerChoices(catalog, authMethods, providers.map((p) => p.id)),
-    [catalog, authMethods, providers],
+    () => providerChoices(catalog, authMethods),
+    [catalog, authMethods],
   );
   const shownChoices = useMemo(() => filterProviders(choices, query), [choices, query]);
 
@@ -203,7 +205,8 @@ export function OnboardingWizard({
   if (offer !== true) return null;
 
   const close = (interrupt = false) => {
-    markOnboardingComplete();
+    // Not "completed": the user only closed it for this run. The next launch
+    // offers setup again while no provider/model exists.
     if (interrupt && example?.sessionId)
       void useRuntimeStore.getState().interrupt(example.sessionId);
     setOffer(false);
@@ -221,7 +224,6 @@ export function OnboardingWizard({
   };
 
   const openSettings = () => {
-    markOnboardingComplete();
     setOffer(false);
     navigate("/settings/agents");
   };

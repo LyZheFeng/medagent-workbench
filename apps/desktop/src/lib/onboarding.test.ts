@@ -34,16 +34,15 @@ describe("first-run onboarding gating", () => {
     expect(hasCompletedOnboarding()).toBe(true);
   });
 
-  it("offers itself only where nothing is configured yet", () => {
+  it("offers itself only where no provider is configured yet", () => {
     const zen: ProviderInfo = { id: "opencode", name: "OpenCode Zen", models: [] };
     const mine: ProviderInfo = { id: "medagent-glm", name: "GLM", models: [] };
-    expect(offersOnboarding([], null)).toBe(true);
-    // The built-in provider ships with the runtime — it is what the wizard
-    // offers as the keyless path, not evidence of a configured install.
-    expect(offersOnboarding([zen], null)).toBe(true);
-    // An existing install has answered these questions already.
-    expect(offersOnboarding([zen, mine], null)).toBe(false);
-    expect(offersOnboarding([zen], "opencode/zen-free")).toBe(false);
+    expect(offersOnboarding([])).toBe(true);
+    // The built-in provider ships with the runtime, and its free tier is not a
+    // configured install: a default model on it still needs the API wizard.
+    expect(offersOnboarding([zen])).toBe(true);
+    // An existing install has added a provider of its own.
+    expect(offersOnboarding([zen, mine])).toBe(false);
   });
 });
 
@@ -60,17 +59,20 @@ describe("provider choices", () => {
     opencode: [{ type: "oauth", label: "Sign in" }],
   };
 
-  it("offers key-based providers and the built-in keyless one, and leaves OAuth-only ones to Settings", () => {
-    const choices = providerChoices(catalog, methods, ["opencode"]);
-    expect(choices.map((c) => c.id)).toEqual(["opencode", "deepseek", "anthropic"]);
-    expect(choices.find((c) => c.id === "opencode")?.needsKey).toBe(false);
+  it("offers only key-based providers, never the unusable keyless built-in", () => {
+    const choices = providerChoices(catalog, methods);
+    expect(choices.map((c) => c.id)).toEqual(["deepseek", "anthropic"]);
     expect(choices.find((c) => c.id === "deepseek")?.needsKey).toBe(true);
+    expect(choices.some((c) => c.id === "opencode")).toBe(false);
     expect(choices.some((c) => c.id === "github-copilot")).toBe(false);
   });
 
-  it("does not invent the built-in provider when the runtime does not serve it", () => {
-    const choices = providerChoices(catalog, methods, []);
-    expect(choices.some((c) => c.id === "opencode")).toBe(false);
+  it("returns nothing when every listed provider is OAuth-only", () => {
+    const choices = providerChoices(
+      [{ id: "opencode", name: "OpenCode Zen", env: [] }],
+      { opencode: [{ type: "oauth", label: "Sign in" }] },
+    );
+    expect(choices).toEqual([]);
   });
 
   it("puts the models people arrive with first, then sorts by name", () => {
@@ -84,7 +86,7 @@ describe("provider choices", () => {
   });
 
   it("filters by id or display name", () => {
-    const choices = providerChoices(catalog, methods, ["opencode"]);
+    const choices = providerChoices(catalog, methods);
     expect(filterProviders(choices, "deep").map((c) => c.id)).toEqual(["deepseek"]);
     expect(filterProviders(choices, "ANTHRO").map((c) => c.id)).toEqual(["anthropic"]);
     expect(filterProviders(choices, "  ")).toHaveLength(choices.length);

@@ -48,9 +48,12 @@ export function markOnboardingComplete(): void {
  * years of work after. The built-in Zen provider does not count — it ships
  * with the runtime and is exactly what the wizard offers as the keyless path.
  */
-export function offersOnboarding(providers: ProviderInfo[], defaultModel: string | null): boolean {
-  const configured = providers.filter((provider) => provider.id !== ZEN_PROVIDER_ID);
-  return configured.length === 0 && !defaultModel;
+export function offersOnboarding(providers: ProviderInfo[]): boolean {
+  // A provider the user added is the only evidence of a configured install. A
+  // default model alone is not — especially one on the built-in provider, whose
+  // free tier is not dependable. Leaving the wizard up is what lets the user
+  // replace a dead free model with their own API.
+  return providers.every((provider) => provider.id === ZEN_PROVIDER_ID);
 }
 
 export interface ProviderChoice {
@@ -133,29 +136,20 @@ export function probeKind(npm: string): "openai" | "anthropic" {
 }
 
 /** Providers worth offering in a first-run step: everything the runtime can
- *  authenticate with an API key, plus the built-in keyless provider. OAuth-only
- *  providers are left to Settings — a browser sign-in is not a first step. */
+ *  authenticate with an API key. The built-in keyless provider is deliberately
+ *  not offered: its free tier is not dependable, and first-run is for connecting
+ *  the user's own model API. OAuth-only providers are left to Settings — a
+ *  browser sign-in is not a first step. */
 export function providerChoices(
   catalog: ProviderCatalogEntry[],
   authMethods: Record<string, ProviderAuthMethod[]>,
-  connected: Iterable<string> = [],
 ): ProviderChoice[] {
-  const connectedIds = new Set(connected);
   const choices: ProviderChoice[] = [];
   for (const entry of catalog) {
     const methods = authMethods[entry.id] ?? [];
     const needsKey = methods.some((method) => method.type === "api") || entry.env.length > 0;
     if (!needsKey) continue;
     choices.push({ id: entry.id, name: entry.name, needsKey: true });
-  }
-  // The keyless built-in is only useful if this runtime actually lists it.
-  if (connectedIds.has(ZEN_PROVIDER_ID)) {
-    const named = catalog.find((entry) => entry.id === ZEN_PROVIDER_ID);
-    choices.unshift({
-      id: ZEN_PROVIDER_ID,
-      name: named?.name ?? "OpenCode Zen",
-      needsKey: false,
-    });
   }
   return rankProviders(choices);
 }
@@ -164,7 +158,6 @@ export function providerChoices(
  *  usually arrive with, then everything else alphabetically. Names, not ids,
  *  decide the tail because that is what the list shows. */
 const RECOMMENDED = [
-  ZEN_PROVIDER_ID,
   "deepseek",
   "anthropic",
   "openai",

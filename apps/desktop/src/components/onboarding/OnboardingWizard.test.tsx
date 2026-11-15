@@ -135,14 +135,14 @@ describe("the first-run wizard", () => {
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
-  it("offers a provider list on a fresh install, keyless built-in included", async () => {
+  it("offers API-key providers on a fresh install, not the unusable free built-in", async () => {
     vi.spyOn(runtime, "getClient").mockReturnValue(clientMock() as never);
     await renderWizard();
 
     const dialog = await screen.findByRole("dialog", { name: "Set up a model" });
     expect(dialog).toHaveTextContent("DeepSeek");
-    expect(dialog).toHaveTextContent("OpenCode Zen");
-    expect(dialog).toHaveTextContent("built-in · no key needed");
+    expect(dialog).not.toHaveTextContent("OpenCode Zen");
+    expect(dialog).not.toHaveTextContent("built-in · no key needed");
     // OAuth-only providers belong to Settings, not to a first step.
     expect(dialog).not.toHaveTextContent("GitHub Copilot");
   });
@@ -428,26 +428,28 @@ describe("the first-run wizard", () => {
   });
 
   it("reports a retry the account cannot clear as a failed test", async () => {
-    // The fresh install this ran on had the built-in provider's free quota used
-    // up: the runtime emitted session.retry with a final cause and no answer.
+    // The runtime emitted session.retry with a final cause and no answer; the
+    // key-based path must offer a way back to the key, not a dead end.
     vi.spyOn(runtime, "getClient").mockReturnValue(clientMock() as never);
     vi.spyOn(onboarding, "startOnboardingExample").mockResolvedValue({
-      draftKey: "onboarding-zen",
-      sessionId: "ses_zen",
+      draftKey: "onboarding-key",
+      sessionId: "ses_key",
     });
+    useRuntimeStore.setState({ loadCatalog: loadCatalogAfterKey() } as never);
     await renderWizard();
     await screen.findByRole("dialog", { name: "Set up a model" });
 
-    // The built-in provider needs no key, so the flow skips straight to models.
-    fireEvent.click(screen.getByText("OpenCode Zen").closest("button")!);
-    fireEvent.click(await screen.findByText("Zen Free").then((el) => el.closest("button")!));
+    fireEvent.click(screen.getByText("DeepSeek").closest("button")!);
+    fireEvent.change(screen.getByLabelText("DeepSeek API key"), { target: { value: "sk-1" } });
+    fireEvent.click(screen.getByRole("button", { name: /save key/i }));
+    fireEvent.click(await screen.findByText("DeepSeek Chat").then((el) => el.closest("button")!));
     fireEvent.click(await screen.findByRole("button", { name: "Send the test message" }));
 
     await act(async () => {
       useRuntimeStore.setState({
-        runningSessions: { ses_zen: true },
+        runningSessions: { ses_key: true },
         retryNotices: {
-          ses_zen: {
+          ses_key: {
             attempt: 2,
             message: "Retrying…",
             action: { reason: "free_tier_limit", message: "Free usage exceeded" },
@@ -457,21 +459,20 @@ describe("the first-run wizard", () => {
     });
 
     expect(await screen.findByText(/Free usage exceeded/)).toBeInTheDocument();
-    // There is no key to change on this path; the way out is another provider.
-    expect(screen.getByRole("button", { name: "Choose another provider" })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Change the key" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Change the key" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Choose another provider" })).not.toBeInTheDocument();
   });
 
-  it("can be postponed without being a nag", async () => {
+  it("comes back after a postponement until a model is configured", async () => {
     vi.spyOn(runtime, "getClient").mockReturnValue(clientMock() as never);
     const first = await renderWizard();
     await screen.findByRole("dialog", { name: "Set up a model" });
     fireEvent.click(screen.getByRole("button", { name: "Set up later" }));
-    expect(window.localStorage.getItem(onboarding.ONBOARDING_DONE_KEY)).toBe("1");
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     first.unmount();
 
     await renderWizard();
-    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(await screen.findByRole("dialog", { name: "Set up a model" })).toBeInTheDocument();
   });
 });
 
