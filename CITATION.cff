@@ -1,19 +1,38 @@
 cff-version: 1.2.0
-message: "If you use Open Science Desktop in your research, please cite it as below."
-title: "Open Science Desktop: a local-first, model-agnostic AI research workbench"
+message: "If you use MedAgent Workbench in your research, please cite it as below."
+title: "MedAgent Workbench: a local-first, model-agnostic medical research agent workbench"
 type: software
 authors:
-  - name: "The Open Science Desktop Contributors"
-repository-code: "https://github.com/ai4s-research/open-science"
-url: "https://openedscience.com"
+  - name: "LyZheFeng"
+repository-code: "https://github.com/LyZheFeng/medagent-workbench"
 license: MIT
 version: 0.8.0
-doi: 10.5281/zenodo.23755472
-date-released: 2026-10-29
+date-released: 2026-11-15
 keywords:
-  - AI for science
-  - research workbench
   - AI agents
+  - medical research
+  - clinical evidence
+  - diagnostic accuracy
   - reproducibility
   - local-first
   - desktop application
+abstract: >-
+  A medical fork of Open Science Desktop for research and teaching: clinical
+  evidence synthesis (PICO, Oxford CEBM, GRADE), diagnostic-accuracy statistics
+  with confidence intervals, CARE-aligned case reports, literature review and
+  citation checking, each with provenance for the artifacts it produces. Not a
+  medical device; it does not provide diagnostic or treatment advice.
+# The upstream project this fork derives from. Cite it too when the work that is
+# actually being relied on is the shared base (shell, runtime, provenance,
+# gateway, computer use) rather than the medical layer.
+references:
+  - type: software
+    title: "Open Science Desktop: a local-first, model-agnostic AI research workbench"
+    authors:
+      - name: "The Open Science Desktop Contributors"
+    repository-code: "https://github.com/ai4s-research/open-science"
+    url: "https://openedscience.com"
+    version: 0.7.1
+    license: MIT
+    doi: 10.5281/zenodo.23755472
+    date-released: 2026-10-29

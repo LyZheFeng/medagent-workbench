@@ -1,5 +1,7 @@
 # Open Science Desktop — Prioritized Requirements (Community-Informed)
 
+> **Fork note.** This document is inherited from [Open Science Desktop](https://github.com/ai4s-research/open-science) (MIT) and describes the shared base: the Tauri shell, the OpenCode runtime, provenance, the gateway and the computer-use layers. The medical fork (MedAgent Workbench) replaces the product identity, the connectors, the skill set and the example project — see the root `README.md` for what actually ships. Statements below about shipped science content (climate-trends, the disciplinary skill list, etc.) describe upstream, not this fork.
+
 > **Purpose.** This document turns real community evidence into concrete,
 > prioritized requirements for **Open Science Desktop**, our open-source, local-first,
 > reproducible AI research workbench. It complements `PRD.md`: the PRD says

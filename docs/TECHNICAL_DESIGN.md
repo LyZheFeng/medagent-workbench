@@ -1,5 +1,7 @@
 # AI4S Workbench Desktop — Technical Design
 
+> **Fork note.** This document is inherited from [Open Science Desktop](https://github.com/ai4s-research/open-science) (MIT) and describes the shared base: the Tauri shell, the OpenCode runtime, provenance, the gateway and the computer-use layers. The medical fork (MedAgent Workbench) replaces the product identity, the connectors, the skill set and the example project — see the root `README.md` for what actually ships. Statements below about shipped science content (climate-trends, the disciplinary skill list, etc.) describe upstream, not this fork.
+
 > **Implementation status (v0.1, 2026-07-02).** Built and verified: Tauri 2 shell + React
 > UI; **OpenCode** bundled as an isolated sidecar (auto-started, app-private config/data,
 > dedicated port); `OpenCodeClient` over HTTP + SSE; real multi-session chat with history;

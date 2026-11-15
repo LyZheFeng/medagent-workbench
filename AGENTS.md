@@ -1,7 +1,8 @@
-# Open Science Desktop
+# MedAgent Workbench (医学智能体桌面工作台)
 
-Brand name: **Open Science Desktop** — "Local-first, model-agnostic AI research
-workbench for macOS, Windows & Linux." Formerly Open Science. Bundle identifier
+Brand name: **MedAgent Workbench** / **医学智能体桌面工作台** — "本地优先、模型无关的
+医学科研 AI 智能体工作台". A medical fork of Open Science Desktop (MIT; see `NOTICE`
+for the derivation and what this fork changes). Bundle identifier
 `com.medagent.workbench` (renamed in 0.8.0 from `com.ai4s.workbench`, whose data
 directory is migrated on first launch); internal `@ai4s/*` package names are
 unchanged.
@@ -20,9 +21,14 @@ Keep it **simple, explicit, clear, complete**.
 
 ## What this project is
 
-An open-source, local-first, model-agnostic, reproducible AI research desktop
-for macOS, Windows, and Linux. See `README.md`, `docs/PRD.md`, and
-`docs/TECHNICAL_DESIGN.md`.
+An open-source, local-first, model-agnostic desktop workbench for **medical
+research**: clinical evidence synthesis, diagnostic-accuracy statistics, case
+reports, literature review, with provenance for every artifact. It is a fork of
+[Open Science Desktop](https://github.com/ai4s-research/open-science) (MIT): the
+desktop shell, the OpenCode runtime and the provenance ledger are shared with
+upstream; the product identity, the connectors, the skill set and the example
+project are medical. See `README.md` (what actually ships), `NOTICE` (derivation)
+and the inherited design docs under `docs/`.
 
 Recommended stack: **Tauri 2 + React + TypeScript + Vite**, Tailwind + Radix UI,
 **OpenCode** as the agent runtime (bundled single-binary sidecar; HTTP + SSE API),
@@ -63,11 +69,18 @@ local workspace + SQLite + JSONL provenance.
   require approval (manual approval mode by default — never ship `off`).
 - API keys go to the OS keychain / credential manager; never into provenance,
   logs, crash reports, git, or exported projects.
+- **Medical boundary (non-negotiable):** nothing the app or its skills say may be
+  presented as diagnosis or treatment advice for an individual patient, and no
+  UI copy may imply clinical validation. The posture is stated in `README.md`,
+  `NOTICE` and the medical skills; keep new copy consistent with it, and prefer
+  research/teaching framing ("the evidence suggests…") over recommendation
+  framing ("you should…").
 
 ## Working conventions
 
-- Default working language for discussion is Chinese; **all project files and
-  code are in English** (this is a pure-English project).
+- Default working language for discussion is Chinese. **Code, comments and the
+  inherited design docs stay English**; user-facing docs may be Chinese — the
+  Chinese README is the primary one, and Chinese is the first UI language.
 - One progress file: `PROGRESS.md`. Append one line per real milestone,
   `YYYY-MM-DD HH:MM` + a one-sentence conclusion, newest on top. Results and
   blockers only.
