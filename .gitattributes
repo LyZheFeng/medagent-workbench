@@ -1,0 +1,20 @@
+# Text files are LF in the repository and in the working tree.
+#
+# This project is checked out on Windows, built there, and run on macOS and Linux.
+# The Windows default (core.autocrlf=true) writes CRLF into a fresh checkout, and a
+# CRLF checkout breaks this repository in ways that never show up in the diff:
+#
+#   scripts/*.sh, scripts/release/*.sh   run under bash on CI and on macOS releases
+#   apps/desktop/src-tauri/shell-integration/{bash-rcfile,zsh/*}
+#                                        sourced verbatim by the user's shells
+#
+# A CRLF shell script works on the machine it was cloned on and fails on the one
+# that actually runs it. Pin every text file to LF instead of relying on each
+# contributor's autocrlf setting.
+* text=auto eol=lf
+
+# Assets, explicit so a later attribute change cannot rewrite their bytes.
+*.png binary
+*.ico binary
+*.icns binary
+*.webp binary
