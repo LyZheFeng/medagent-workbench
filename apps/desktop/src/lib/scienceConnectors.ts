@@ -56,12 +56,18 @@ export interface RemoteScienceConnector extends ScienceConnectorBase {
 export type ScienceConnector = LocalScienceConnector | RemoteScienceConnector;
 
 export const SCIENCE_CONNECTORS: ScienceConnector[] = [
+  // PubMed shows up in three connectors on purpose, and they do different jobs:
+  // paper-search is cross-server discovery (it happens to index PubMed),
+  // biomcp is trials + variants with PubMed abstracts attached, and pubmedmcp
+  // is PubMed-only through NCBI E-utils (MeSH-aware queries, date ranges). The
+  // labels and descriptions say which is which, so the model does not have to
+  // guess between them.
   {
     id: "paper-search",
     label: "Literature search",
     discipline: "all fields",
     description:
-      "arXiv · PubMed · Crossref · Semantic Scholar · bioRxiv/medRxiv — search & fetch papers",
+      "Cross-server discovery — arXiv · Crossref · Semantic Scholar · bioRxiv/medRxiv, plus PubMed; search & fetch papers",
     pkg: "paper-search-mcp",
     module: "paper_search_mcp.server",
     source: "github.com/openags/paper-search-mcp",
@@ -70,7 +76,8 @@ export const SCIENCE_CONNECTORS: ScienceConnector[] = [
     id: "biomcp",
     label: "Biomedical databases",
     discipline: "medicine",
-    description: "PubMed articles, ClinicalTrials.gov, and genomic variants (MyVariant/ClinVar)",
+    description:
+      "ClinicalTrials.gov trials and genomic variants (MyVariant/ClinVar), with PubMed abstracts alongside",
     pkg: "biomcp-python",
     module: "biomcp",
     args: ["run"],
@@ -94,20 +101,25 @@ export const SCIENCE_CONNECTORS: ScienceConnector[] = [
     label: "openFDA (drugs & devices)",
     discipline: "medicine",
     description:
-      "Drug labels, approved products, and device classifications from FDA openFDA — adverse-event and regulatory metadata, free, no key",
-    pkg: "openfda-mcp",
+      "Drug labels, Drugs@FDA applications, and device submissions/classifications from FDA openFDA — adverse-event and regulatory metadata, free, no key",
+    // Pinned: a single-maintainer 0.1.x package is the instrument that resolved
+    // the identifiers in a published dataset, and the package's own README asks
+    // researchers to pin it. "We used openFDA" is not a methods statement.
+    pkg: "openfda-mcp==0.1.0",
     bin: "openfda-mcp",
-    source: "github.com/pyycc/openfda-mcp",
+    source: "github.com/Black-Swan-Causal-Labs/openfda-mcp",
   },
   {
     id: "pubmedmcp",
     label: "PubMed abstracts (E-utils)",
     discipline: "medicine",
     description:
-      "Search and fetch PubMed abstracts directly via NCBI E-utils — MeSH-aware queries, date ranges, and full abstract retrieval, free",
-    pkg: "pubmedmcp",
+      "PubMed-only search and abstract retrieval via NCBI E-utils — MeSH-aware queries, date ranges, and full abstracts, free",
+    // Pinned for the same reason as openfda: a citation that decides a claim
+    // should be reproducible from the version that fetched it.
+    pkg: "pubmedmcp==0.1.4",
     bin: "pubmedmcp",
-    source: "pypi.org/project/pubmedmcp",
+    source: "github.com/grll/pubmedmcp",
   },
   {
     type: "remote",

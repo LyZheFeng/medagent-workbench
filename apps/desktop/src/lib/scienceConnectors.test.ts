@@ -103,6 +103,26 @@ describe("connectorConfig", () => {
     expect(disciplines.has("genomics")).toBe(true);
   });
 
+  it("pins the medical packages whose answers end up in a methods statement", () => {
+    // openfda-mcp asks researchers to pin it for reproducibility, and both it
+    // and pubmedmcp have released once or twice: an unpinned install means a
+    // later run resolves identifiers through a different version.
+    for (const id of ["openfda", "pubmedmcp"]) {
+      const c = byId(id);
+      if (c.type === "remote") throw new Error(`${id} should be a local connector`);
+      expect(c.pkg).toMatch(/==\d+\.\d+\.\d+$/);
+    }
+  });
+
+  it("points every installable connector at its own upstream repository", () => {
+    // "Upstream project" is the field users inspect before enabling a server;
+    // a PyPI-only link (or someone else's repo) defeats it.
+    for (const c of SCIENCE_CONNECTORS) {
+      if (c.type === "remote") continue;
+      expect(c.source.startsWith("github.com/")).toBe(true);
+    }
+  });
+
   it("launches the PubMed abstracts connector as a console script (no key)", () => {
     const c = byId("pubmedmcp");
     if (c.type === "remote") throw new Error("pubmedmcp should be a local connector");
