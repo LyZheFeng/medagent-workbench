@@ -82,6 +82,10 @@ pub fn detect_installed(commands: &[String]) -> Vec<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    // Only the unix-only tests below build temporary trees; on Windows the
+    // import (and the helper) had no caller and produced a warning that scrolled
+    // past every real one.
+    #[cfg(unix)]
     use std::fs;
 
     #[cfg(unix)]
@@ -93,6 +97,7 @@ mod tests {
         path
     }
 
+    #[cfg(unix)]
     fn temp_dir(tag: &str) -> PathBuf {
         let dir = std::env::temp_dir().join(format!("osd-which-{tag}-{}", std::process::id()));
         fs::create_dir_all(&dir).unwrap();
