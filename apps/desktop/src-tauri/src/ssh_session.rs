@@ -55,7 +55,7 @@ pub fn multiplexing_supported() -> bool {
 ///
 /// Deliberately NOT the app data dir: a ControlPath is a unix socket, and macOS
 /// caps socket paths at 104 bytes — "~/Library/Application Support/
-/// com.ai4s.workbench/runtime/ssh/" plus ssh's own 40-character `%C` hash
+/// com.medagent.workbench/runtime/ssh/" plus ssh's own 40-character `%C` hash
 /// overruns that, and the failure mode is a cryptic bind error at connect time.
 ///
 /// The candidates below are tried longest-name-first and all live in the
@@ -746,7 +746,7 @@ mod tests {
         // measured at 105 bytes on a real machine, which is why control_dir()
         // falls back to shorter names rather than trusting the first candidate.
         let deep = Path::new(
-            "/Users/somebody/Library/Application Support/com.ai4s.workbench/runtime/ssh/sockets",
+            "/Users/somebody/Library/Application Support/com.medagent.workbench/runtime/ssh/sockets",
         );
         assert!(!socket_path_fits(deep));
         assert!(socket_path_fits(&control_dir()), "the chosen dir must always fit");

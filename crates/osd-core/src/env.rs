@@ -14,7 +14,11 @@ use crate::runtime::RuntimeState;
 /// the same string as `tauri.conf.json`'s `identifier`, and it MUST stay that
 /// way: `osd` and the desktop app share one runtime root, so a session started
 /// in one is visible in the other.
-pub const IDENTIFIER: &str = "com.ai4s.workbench";
+pub const IDENTIFIER: &str = "com.medagent.workbench";
+
+/// The identifier this app used before 0.8.0. Nothing reads it except
+/// [`migrate_legacy_data_dir`], which carries such an install's data over once.
+pub const LEGACY_IDENTIFIER: &str = "com.ai4s.workbench";
 
 struct Inner {
     data_dir: PathBuf,
@@ -63,7 +67,23 @@ impl Env {
         version: String,
     ) -> Result<Self, String> {
         let cwd = std::env::current_dir().map_err(|e| e.to_string())?;
-        let data_dir = resolve_data_dir(state_dir, std::env::var("OSD_STATE_DIR").ok(), &cwd)?;
+        let env_var = std::env::var("OSD_STATE_DIR").ok();
+        let is_default = requested_state_dir(state_dir.clone(), env_var.clone()).is_none();
+        let data_dir = resolve_data_dir(state_dir, env_var, &cwd)?;
+        // Only the platform-default directory can have a predecessor: an explicit
+        // state dir is the caller saying this instance's state lives here and
+        // nowhere else. Done before anything writes into `data_dir`, because
+        // creating it first would make the migration look unnecessary forever.
+        //
+        // Not under `cfg!(test)`: unit tests build an `Env` against the
+        // developer's REAL home (`headless(None, None, …)`), and reading that
+        // directory is harmless while moving it is not — the first run of these
+        // tests renamed an actual `%APPDATA%\com.ai4s.workbench`.
+        if is_default && !cfg!(test) {
+            if let Err(e) = migrate_legacy_data_dir(&data_dir) {
+                eprintln!("{e}");
+            }
+        }
         let resource_dir = match resource_dir {
             Some(d) => d,
             None => default_resource_dir()?,
@@ -71,7 +91,7 @@ impl Env {
         Ok(Env::new(data_dir, resource_dir, platform_document_dir(), version))
     }
 
-    /// `<data dir>` — e.g. `~/Library/Application Support/com.ai4s.workbench`.
+    /// `<data dir>` — e.g. `~/Library/Application Support/com.medagent.workbench`.
     pub fn data_dir(&self) -> &Path {
         &self.0.data_dir
     }
@@ -122,6 +142,35 @@ fn platform_data_dir() -> Result<PathBuf, String> {
         }
     };
     Ok(base.join(IDENTIFIER))
+}
+
+/// Move a pre-0.8.0 install's data directory under the current identifier.
+///
+/// The data directory is named after the bundle identifier, so renaming the app's
+/// identity (`com.ai4s.workbench` → `com.medagent.workbench`) would strand every
+/// existing session, run record and setting in a directory nothing reads any more:
+/// the app would start empty next to its own old data, and a user would read that
+/// as "my work is gone". One rename moves it — same parent, same filesystem, both
+/// inside the user's own data area.
+///
+/// Deliberately one-shot and narrow: it does nothing when the new directory
+/// already exists (a second launch, or an install that never had the old one), so
+/// it is safe to call on every start, and it never deletes anything. Returns
+/// whether it moved anything.
+pub fn migrate_legacy_data_dir(data_dir: &Path) -> Result<bool, String> {
+    let Some(parent) = data_dir.parent() else {
+        return Ok(false);
+    };
+    let legacy = parent.join(LEGACY_IDENTIFIER);
+    if data_dir.exists() || !legacy.is_dir() {
+        return Ok(false);
+    }
+    std::fs::rename(&legacy, data_dir).map_err(|e| {
+        format!(
+            "could not move the pre-0.8.0 data directory {legacy:?} to {data_dir:?}: {e}"
+        )
+    })?;
+    Ok(true)
 }
 
 /// The state dir a headless instance was asked to keep its state in, if any:
@@ -395,6 +444,36 @@ mod tests {
     fn data_dir_is_identifier_scoped() {
         let dir = platform_data_dir().expect("a home directory in the test env");
         assert!(dir.ends_with(IDENTIFIER), "{dir:?} must be the app's own directory");
+    }
+
+    /// The one-shot move from the pre-0.8.0 identifier: it happens when it should,
+    /// keeps the contents, and never overwrites a data directory that exists.
+    #[test]
+    fn a_pre_0_8_0_data_dir_is_moved_once() {
+        let root = std::env::temp_dir().join(format!("migrate-data-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(&root).unwrap();
+        let legacy = root.join(LEGACY_IDENTIFIER);
+        let current = root.join(IDENTIFIER);
+        std::fs::create_dir_all(&legacy).unwrap();
+        std::fs::write(legacy.join("session.db"), b"old sessions").unwrap();
+
+        // Nothing to move: no predecessor next to the target directory.
+        let fresh = root.join("elsewhere").join(IDENTIFIER);
+        assert!(!migrate_legacy_data_dir(&fresh).unwrap());
+
+        // The move itself: contents carried over, nothing left behind.
+        assert!(migrate_legacy_data_dir(&current).unwrap());
+        assert_eq!(std::fs::read(current.join("session.db")).unwrap(), b"old sessions");
+        assert!(!legacy.exists());
+
+        // A second start, and a downgrade that recreated the old directory, must
+        // both be no-ops rather than a fight over the same sessions.
+        std::fs::create_dir_all(&legacy).unwrap();
+        assert!(!migrate_legacy_data_dir(&current).unwrap());
+        assert_eq!(std::fs::read(current.join("session.db")).unwrap(), b"old sessions");
+
+        std::fs::remove_dir_all(&root).unwrap();
     }
 
     /// An absolute path in the host's OWN spelling. `is_absolute` is decided by

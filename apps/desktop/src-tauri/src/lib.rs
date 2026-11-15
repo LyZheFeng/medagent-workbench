@@ -62,15 +62,31 @@ pub(crate) fn env_of(app: &AppHandle) -> Env {
 /// agree on where the data and the bundled resources are.
 fn build_env(app: &AppHandle) -> Result<Env, String> {
     let data_dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
+    // 0.8.0 renamed the bundle identifier, and the data directory is named after
+    // it: a v0.7.x install's sessions, runs and settings sit one rename away.
+    // Before anything writes into `data_dir` — creating it first would make the
+    // migration look unnecessary on every later launch. A failure is reported but
+    // never fatal: the app then starts empty, exactly as it would without the
+    // attempt, and the next launch retries (nothing was created here).
+    let moved = osd_core::env::migrate_legacy_data_dir(&data_dir);
     // Resources are resolved by Tauri (it knows the bundle layout on each
     // platform); the core only ever joins names onto this directory.
     let resource_dir = app.path().resource_dir().map_err(|e| e.to_string())?;
-    Ok(Env::new(
+    let env = Env::new(
         data_dir,
         resource_dir,
         app.path().document_dir().ok(),
         app.package_info().version.to_string(),
-    ))
+    );
+    match moved {
+        Ok(true) => osd_core::debug_log::append(
+            &env,
+            "moved the data directory from the pre-0.8.0 identifier",
+        ),
+        Ok(false) => {}
+        Err(e) => eprintln!("data directory migration failed: {e}"),
+    }
+    Ok(env)
 }
 
 /// The variables Claude Code puts on the processes it starts. When the app was

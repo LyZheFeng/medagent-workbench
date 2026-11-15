@@ -8,7 +8,7 @@ import { computerUseProviderPath } from './provider-root'
  *  the only thing that holds those two grants. */
 export const MACOS_COMPUTER_USE_APP_NAME = '医学智能体工作台 Computer Use.app'
 
-export const MACOS_COMPUTER_USE_BUNDLE_ID = 'com.ai4s.workbench.computer-use'
+export const MACOS_COMPUTER_USE_BUNDLE_ID = 'com.medagent.workbench.computer-use'
 
 export function resolveMacOSComputerUseAppPath(): string | null {
   return computerUseProviderPath(MACOS_COMPUTER_USE_APP_NAME)

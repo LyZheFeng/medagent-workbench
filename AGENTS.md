@@ -1,8 +1,10 @@
 # Open Science Desktop
 
 Brand name: **Open Science Desktop** — "Local-first, model-agnostic AI research
-workbench for macOS, Windows & Linux." Formerly Open Science. Bundle identifier stays
-`com.ai4s.workbench` and internal `@ai4s/*` package names are unchanged.
+workbench for macOS, Windows & Linux." Formerly Open Science. Bundle identifier
+`com.medagent.workbench` (renamed in 0.8.0 from `com.ai4s.workbench`, whose data
+directory is migrated on first launch); internal `@ai4s/*` package names are
+unchanged.
 
 Project rules and working context for AI agents (Claude Code, Cursor, Codex, etc.).
 `CLAUDE.md` is a symlink to this file — edit only `AGENTS.md`.

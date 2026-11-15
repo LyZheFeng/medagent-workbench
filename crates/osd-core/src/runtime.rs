@@ -56,7 +56,7 @@ pub fn runtime_failure(state: &RuntimeState) -> Option<(u64, String)> {
     Some((lifecycle.exits, message))
 }
 
-/// App-private runtime root, e.g. ~/Library/Application Support/com.ai4s.workbench/runtime
+/// App-private runtime root, e.g. ~/Library/Application Support/com.medagent.workbench/runtime
 pub fn runtime_root(env: &Env) -> Result<PathBuf, String> {
     Ok(env.data_dir().join("runtime"))
 }
