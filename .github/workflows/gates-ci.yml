@@ -6,6 +6,16 @@ name: gates CI
 # scripts/dev/. They are Python, stdlib-only, and take about a second; nothing
 # else in the CI matrix builds or runs them, so a gate could rot silently.
 on:
+  push:
+    # This repository is developed by pushing to master, not by merging PRs, so
+    # a PR-only trigger would mean the gates run once a day instead of on every
+    # change. They take a second.
+    branches: [master]
+    paths:
+      - .github/workflows/gates-ci.yml
+      - runtime/skills/**
+      - runtime/tools/**
+      - scripts/dev/**
   pull_request:
     paths:
       - .github/workflows/gates-ci.yml
@@ -13,7 +23,8 @@ on:
       - runtime/tools/**
       - scripts/dev/**
   workflow_dispatch:
-  # Agents run these before pushing to master; once a day catches what slipped.
+  # The daily run still earns its slot: it catches a gate that rotted against a
+  # runtime or data file the paths filter does not watch.
   schedule:
     - cron: "23 18 * * *"
 
