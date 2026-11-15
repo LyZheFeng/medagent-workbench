@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import { ChevronRight, FileSearch, FlaskConical, Globe2, LineChart } from "lucide-react";
+import { ChevronRight, FileSearch, FlaskConical, LineChart, Stethoscope } from "lucide-react";
 import { installExample, isTauri } from "@/lib/tauri";
 import { toast } from "@/lib/toast";
 import { cn } from "@/lib/cn";
@@ -52,15 +52,15 @@ export const WORKFLOW_STARTERS: WorkflowStarter[] = [
   },
   {
     id: "example-clinical",
-    icon: <Globe2 size={17} strokeWidth={1.75} />,
+    icon: <Stethoscope size={17} strokeWidth={1.75} />,
     prompt:
       "Analyze the diagnostic-accuracy dataset at clinical-diagnostics/data/diagnostic_test.csv " +
       "(simulated study: 200 patients, index test score vs gold-standard disease status — see " +
-      "clinical-diagnostics/README.md). Compute sensitivity, specificity, PPV, NPV and " +
-      "likelihood ratios with 95% CIs across candidate cutoffs, choose an optimal cutoff with " +
-      "Youden's index, plot the ROC curve as clinical-diagnostics/roc_curve.png, and write " +
-      "clinical-diagnostics/report.md citing the dataset provenance — every number must come " +
-      "from the code you ran.",
+      "clinical-diagnostics/README.md). Compute sensitivity, specificity, PPV, NPV with 95% " +
+      "confidence intervals and the likelihood ratios across candidate cutoffs, choose an " +
+      "optimal cutoff with Youden's index, plot the ROC curve as clinical-diagnostics/roc_curve.png, " +
+      "and write clinical-diagnostics/report.md citing the dataset provenance — every number must " +
+      "come from the code you ran.",
     prepare: async () => {
       if (isTauri) await installExample("clinical-diagnostics");
     },

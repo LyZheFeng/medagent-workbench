@@ -70,7 +70,6 @@
       "../../../runtime/opencode-profile/command": "profile/command/",
       "../../../runtime/harness": "harness/",
     "../../../runtime/acp-server": "acp-server/",
-      "../../../examples/climate-trends": "examples/climate-trends/",
       "../../../examples/clinical-diagnostics": "examples/clinical-diagnostics/"
     },
     "icon": [

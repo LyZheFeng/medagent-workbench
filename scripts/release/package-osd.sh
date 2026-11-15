@@ -80,7 +80,7 @@ copy_resource runtime/opencode-profile/agent profile/agent
 copy_resource runtime/opencode-profile/command profile/command
 copy_resource runtime/harness harness
 copy_resource runtime/acp-server acp-server
-copy_resource examples/climate-trends examples/climate-trends
+copy_resource examples/clinical-diagnostics examples/clinical-diagnostics
 
 # The native computer-use providers, when this machine staged them. Optional on
 # purpose: a compute node has no desktop to drive, and the `computer` tool

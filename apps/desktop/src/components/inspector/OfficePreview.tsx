@@ -1,6 +1,6 @@
 // Inline previews for Office formats, rendered locally (no conversion service):
-// docx via docx-preview (HTML), xlsx via SheetJS sheet_to_html (merged cells
-// kept), pptx via pptx-preview (inline-styled slide list). Each renderer is
+// docx via docx-preview (HTML), xlsx via ExcelJS (merged cells and styles kept),
+// pptx via pptx-preview (inline-styled slide list). Each renderer is
 // dynamic-imported so the heavy libraries stay out of the main bundle.
 //
 // Everything renders inside a Shadow DOM: document content expects plain

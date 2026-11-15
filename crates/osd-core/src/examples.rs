@@ -1,13 +1,14 @@
-// Built-in example projects (P0-1 / P1-1): real, small datasets bundled as
-// resources and copied into the workspace on demand, so the agent runs a
-// genuine analysis on genuine data — including a non-bio one (climate-trends).
+// Built-in example projects (P0-1 / P1-1): small datasets bundled as resources and
+// copied into the workspace on demand, so the agent runs a genuine analysis on
+// genuine data. The medical fork ships one: the simulated diagnostic-accuracy
+// study, whose numbers are reproducible from its own analyze.py.
 use std::path::Path;
 
 use crate::env::Env;
 use crate::runtime::workspace_dir;
 
 /// Bundled example projects; the command rejects anything else.
-const EXAMPLES: &[&str] = &["climate-trends", "clinical-diagnostics"];
+const EXAMPLES: &[&str] = &["clinical-diagnostics"];
 
 /// Copy `src` into `dst` recursively WITHOUT overwriting existing files — a
 /// re-installed example must never clobber the user's edited copy.

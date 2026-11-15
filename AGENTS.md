@@ -38,7 +38,9 @@ local workspace + SQLite + JSONL provenance.
   Linux AT-SPI script, Windows UI Automation script), ported from Orca (MIT).
   Staged into the bundle by `scripts/dev/build-computer-use.mjs`.
 - `docs/` — product and technical specs.
-- `examples/bci-trends/` — the built-in demo project.
+- `examples/clinical-diagnostics/` — the built-in demo project (simulated
+  diagnostic-accuracy study; its `analyze.py` reproduces every number in its
+  report).
 - `scripts/` — release and dev scripts.
 
 ## Architecture guardrails
