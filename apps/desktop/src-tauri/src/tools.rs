@@ -132,6 +132,9 @@ pub fn detect_tools(app: AppHandle) -> Vec<ToolStatus> {
 
 #[cfg(test)]
 mod tests {
+    // Every case here drives a POSIX shell script, so the module is empty on
+    // Windows — importing the parent would be an unused import there.
+    #[cfg(unix)]
     use super::*;
 
     #[cfg(unix)]

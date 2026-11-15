@@ -34,6 +34,11 @@ pub enum PathRoute {
     /// The directory was already on PATH — nothing else was touched.
     AlreadyOnPath,
     /// A block was appended to the user's login profile.
+    ///
+    /// Constructed only by the POSIX route, and the enum is shared, so the
+    /// warning is silenced on Windows instead of splitting the type — the same
+    /// reason `UserEnvironment` carries the mirrored attribute.
+    #[cfg_attr(windows, allow(dead_code))]
     ShellProfile,
     /// The per-user PATH was extended (Windows). Never constructed elsewhere,
     /// and the enum is shared, so the unused-variant warning is silenced there
@@ -238,6 +243,11 @@ fn login_profiles() -> Result<Vec<PathBuf>, String> {
 
 /// Append the PATH line to every profile that shell reads, once each. Returns
 /// the files, so the settings card can name exactly what was touched.
+///
+/// POSIX only in production (Windows extends the per-user PATH instead), but
+/// compiled everywhere so the block-writing tests also run on Windows, where
+/// they are the only coverage of that text manipulation.
+#[cfg_attr(windows, allow(dead_code))]
 fn extend_login_profiles(dir: &Path) -> Result<Vec<PathBuf>, String> {
     let profiles = login_profiles()?;
     let mut written = Vec::new();
@@ -256,6 +266,9 @@ fn extend_login_profiles(dir: &Path) -> Result<Vec<PathBuf>, String> {
 
 /// The write itself, against a named file: no environment, so a test can drive
 /// it without touching process-wide state that the rest of the suite shares.
+///
+/// Compiled on Windows only for those tests — see `extend_login_profiles`.
+#[cfg_attr(windows, allow(dead_code))]
 fn extend_profile_file(profile: &Path, dir: &Path) -> Result<(), String> {
     let existing = std::fs::read_to_string(profile).unwrap_or_default();
     // Already ours: leave the file alone. This runs on every launch.

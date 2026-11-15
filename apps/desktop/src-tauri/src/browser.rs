@@ -196,9 +196,11 @@ pub fn detect_chrome() -> Option<ChromeInfo> {
 
 /// Platform-specific executable locations, most-preferred browser first.
 fn chrome_candidates() -> Vec<(&'static str, Vec<String>)> {
-    let home = std::env::var("HOME").unwrap_or_default();
     #[cfg(target_os = "macos")]
     {
+        // A per-user install lives under the home directory, and nothing outside
+        // this block reads it — read where it is used (Windows has no $HOME).
+        let home = std::env::var("HOME").unwrap_or_default();
         let user = |app: &str| format!("{home}{app}");
         vec![
             (
