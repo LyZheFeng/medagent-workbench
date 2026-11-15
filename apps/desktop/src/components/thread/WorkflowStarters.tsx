@@ -56,11 +56,11 @@ export const WORKFLOW_STARTERS: WorkflowStarter[] = [
     prompt:
       "Analyze the diagnostic-accuracy dataset at clinical-diagnostics/data/diagnostic_test.csv " +
       "(simulated study: 200 patients, index test score vs gold-standard disease status — see " +
-      "clinical-diagnostics/README.md). Compute sensitivity, specificity, PPV, NPV with 95% " +
-      "confidence intervals and the likelihood ratios across candidate cutoffs, choose an " +
-      "optimal cutoff with Youden's index, plot the ROC curve as clinical-diagnostics/roc_curve.png, " +
-      "and write clinical-diagnostics/report.md citing the dataset provenance — every number must " +
-      "come from the code you ran.",
+      "clinical-diagnostics/README.md). Compute sensitivity, specificity, PPV, NPV and the " +
+      "likelihood ratios, all with 95% confidence intervals, across candidate cutoffs; choose " +
+      "an optimal cutoff with Youden's index, plot the ROC curve as " +
+      "clinical-diagnostics/roc_curve.png, and write clinical-diagnostics/report.md citing the " +
+      "dataset provenance — every number must come from the code you ran.",
     prepare: async () => {
       if (isTauri) await installExample("clinical-diagnostics");
     },

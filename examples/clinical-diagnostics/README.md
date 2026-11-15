@@ -34,7 +34,7 @@ python analyze.py            # 统计只用标准库;装了 matplotlib 才会写
 直接点开新会话中的「示例项目:诊断试验数据分析」卡片,或发送:
 
 > 分析 clinical-diagnostics/data/diagnostic_test.csv:计算候选截断下的
-> 灵敏度/特异度/PPV/NPV(含 95% CI)与似然比,用 Youden 指数选择最佳截断,
+> 灵敏度/特异度/PPV/NPV 与似然比(均含 95% CI),用 Youden 指数选择最佳截断,
 > 绘制 ROC 曲线保存为 roc_curve.png,并写 report.md 报告结论。
 
 ## 溯源

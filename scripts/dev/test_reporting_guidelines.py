@@ -7,6 +7,8 @@ is that the same text produces the same findings twice, so the fixtures are
 written to be boring rather than realistic.
 """
 import importlib.util
+import contextlib
+import io
 import os
 import sys
 import tempfile
@@ -180,6 +182,16 @@ The adjusted OR was 1.31 for weekend discharge.
         self.assertTrue(report.findings)
         self.assertEqual(report.findings[0].level, "error")
         self.assertIn("could not read", report.findings[0].title)
+
+    def test_the_printed_block_survives_a_non_utf8_console(self):
+        # The block quotes the manuscript, and a Chinese Windows console (cp936)
+        # cannot encode every character it might contain: ² and ⚠ both raise.
+        d = tempfile.mkdtemp()
+        p = write(d, "review.md", "A systematic review of trials.\n")
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            self.assertEqual(cr.main([p]), 0)
+        buf.getvalue().encode("gbk")
 
 
 if __name__ == "__main__":

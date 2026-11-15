@@ -194,7 +194,7 @@ PRISMA: tuple[Item, ...] = (
          (r"\d+ records", r"screened", r"excluded", r"篇文献", r"筛选", r"排除")),
     Item("risk-of-bias", "risk-of-bias assessment", "PRISMA item 11", True,
          (r"risk of bias", r"quality assessment", r"Newcastle", r"偏倚风险", r"质量评价")),
-    Item("heterogeneity", "heterogeneity (I², τ² or a narrative account)", "PRISMA item 13", False,
+    Item("heterogeneity", "heterogeneity (I2, tau2 or a narrative account)", "PRISMA item 13", False,
          (r"heterogeneity", r"\bI\s*2\b", r"I\^2", r"异质性")),
     Item("publication-bias", "publication bias", "PRISMA item 15", False,
          (r"publication bias", r"funnel plot", r"Egger", r"发表偏倚", r"漏斗图")),
@@ -333,6 +333,13 @@ def listing(design: str) -> int:
 
 
 def main(argv: list[str]) -> int:
+    # The block quotes text from the manuscript, and a Windows console is not
+    # UTF-8: one unprintable character would turn a finished review into a
+    # UnicodeEncodeError. Degrade it instead.
+    try:
+        sys.stdout.reconfigure(errors="replace")
+    except (AttributeError, ValueError):
+        pass
     args = list(argv)
     design: str | None = None
     if "--list" in args:

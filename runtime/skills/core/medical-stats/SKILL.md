@@ -18,8 +18,13 @@ per STARD).
 
 - Sensitivity = TP/(TP+FN), Specificity = TN/(TN+FP)
 - PPV/NPV are **prevalence-dependent** — state the study prevalence beside them
-- Likelihood ratios: LR+ = Sens/(1−Spec), LR− = (1−Sens)/Spec
-- All proportions get **Wilson 95% CIs** (never bare Wald)
+- Likelihood ratios: LR+ = Sens/(1−Spec), LR− = (1−Sens)/Spec, each with the
+  **log-scale 95% CI** (Simel 1991: SE(ln LR+) = √((1−Sens)/(Sens·n₁) +
+  Spec/((1−Spec)·n₀))). A symmetric interval on a ratio puts the lower bound
+  below zero, so the log scale is not a nicety.
+- All proportions get **Wilson 95% CIs** (never bare Wald); when a cell holds
+  fewer than five events, that is **Clopper-Pearson** territory — Wilson is
+  optimistic exactly there.
 - ROC + AUC with DeLong or bootstrap CI; optimal cutoff by Youden's J only
   with a stated clinical rationale (rule-out → high sensitivity, rule-in →
   high specificity)
@@ -29,10 +34,17 @@ Helper (stdlib-only, reuses the stats-integrity checker conventions):
 
 ```bash
 python "$XDG_CONFIG_HOME/opencode/skills/medical-stats/diag_stats.py" <table.csv>
+python "$XDG_CONFIG_HOME/opencode/skills/medical-stats/diag_stats.py" --exact <table.csv>
 ```
 
 where `table.csv` has header `tp,fp,tn,fn` (one row; or per-cutoff rows). It
-prints Sens/Spec/PPV/NPV/LR± with Wilson CIs and a JSON block.
+prints Sens/Spec/PPV/NPV and LR± with their 95% CIs, plus a JSON block. `--exact`
+switches the proportion intervals to Clopper-Pearson; the default is Wilson.
+
+One rule the helper refuses to paper over: **when a 2×2 cell is zero, the
+likelihood-ratio CI is reported as undefined rather than computed after adding
+0.5 to every cell.** A continuity correction changes the estimate, so if you want
+it, say so in the report and justify it for that table.
 
 ## Sample size / power
 
