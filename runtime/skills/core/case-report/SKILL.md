@@ -11,13 +11,25 @@ not a clinical note.
 
 ## De-identification first
 
-Before writing a word of clinical content:
+Before writing a word of clinical content, run the de-identification gate on
+any draft that carries patient details (see the `deidentify` skill):
 
-- Replace names, initials, exact dates (shift to month/year or "day 3 of
-  admission"), ages >89 → "≥90", hospital/ward identifiers, and rare-occupation
-  details
+```bash
+python "$XDG_CONFIG_HOME/opencode/skills/deidentify/deidentify.py" draft.md
+```
+
+Work from `draft.deid.md`; keep the mapping file (written only with
+`--mapping`) where patient data belongs, never in the workspace. The gate is a
+rule-based first pass, not an anonymity guarantee.
+
+Then check what patterns cannot see:
+
+- Unlabelled names, initials, rare occupations and distinctive details (a
+  tattoo, a family business) — remove them yourself; the gate does not guess
+- Prefer relative days ("day 3 of admission") when the calendar adds nothing;
+  the gate's shift preserves intervals, but the dates are still false
 - Images: remove or black out every identifier, including DICOM metadata burns;
-  distinctive tattoos/ birthmarks only with consent noted
+  distinctive tattoos/birthmarks only with consent noted
 - State the **informed-consent status** in the title-page footnote: written
   consent obtained / guardian consent / waived by IRB (with reference). No
   consent statement → the draft carries a `[CONSENT-PENDING]` marker that the

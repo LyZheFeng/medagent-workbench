@@ -25,6 +25,7 @@
 |---|---|---|
 | 🏥 医学连接器 | PubMed / 文献检索、biomcp(临床试验 / ClinVar)、GEO、openFDA,一键装入隔离环境 | 现成 MCP 服务器,接入即用 |
 | 🧠 医学技能 | 临床证据(PICO / CEBM / GRADE)、医学统计(诊断试验 / 样本量 / 生存分析)、医学图表(ROC / 森林图 / KM)、CARE 病例报告、文献综述、引用核查、论文→报告 | **提示词级**;`diag_stats.py` 为确定性脚本 |
+| 🪪 去标识 | 病例报告 / 临床文本:姓名、住院号、身份证、电话、邮箱、地址、机构换成稳定令牌,日期整体偏移,≥90 岁归组 | `deidentify.py` 确定性脚本,输出 review 卡片;图像与 DICOM 不在范围内 |
 | 📋 报告规范 | 按 STROBE / CONSORT / CARE / STARD / PRISMA 逐条检查稿件**是否提到**必需项(伦理、知情同意、注册号、置信区间、缺失数据、去标识、流程、不良事件) | `check_report.py` 确定性 gate,输出 review 卡片 |
 | 📊 诊断统计 | 灵敏度 / 特异度 / PPV / NPV + Wilson 95% CI、ROC / AUC(bootstrap CI)、Youden 最佳截断 | `analyze.py`、`diag_stats.py` 已实跑验证 |
 | 🔬 示例项目 | 200 例**模拟**诊断试验数据,跑通「数据 → 统计 → ROC → 报告」 | 可一键安装并实跑 |
@@ -77,6 +78,7 @@ pnpm --filter @ai4s/desktop tauri dev
 ## 尚未完成(不隐瞒)
 
 - 报告规范检查只判断"文本是否提到"某项,不判断写法是否合规;也不要把它当成投稿前的合规结论
+- 去标识脚本只处理文本:图像、DICOM 元数据,以及没有标签可循的姓名/罕见职业仍需人工核对;它是第一遍,不是匿名保证
 - 医学图表(ROC / 森林图 / KM)由模型按技能说明生成,尚无脚本化图表生成器
 - 引用核查(`citation-reviewer`)目前是流程说明,没有确定性脚本
 - macOS / Linux 安装包在本分支尚未验证;已发布的只有 Windows 版

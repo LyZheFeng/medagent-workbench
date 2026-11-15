@@ -75,6 +75,11 @@ deterministic tooling and the exact finding vocabulary:
   keep its boundary — a presence check is not a compliance verdict, so never
   upgrade its result into "the manuscript complies".
 
+- **deidentify** — before reviewing or exporting a case report, run its gate on
+  the draft and work from the copy it writes. Then check what a pattern list
+  cannot see: unlabelled names, rare occupations, distinctive details, image and
+  DICOM identifiers. Never call a document anonymous on the gate's output alone.
+
 Beyond the skills, always ask:
 
 - Can this be re-run? Are inputs, versions and seeds pinned, or does the result
