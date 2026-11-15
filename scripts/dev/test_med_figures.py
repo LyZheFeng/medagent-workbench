@@ -444,5 +444,214 @@ class Rendering(unittest.TestCase):
         self.assertAlmostEqual(review_of(out_text)["estimates"]["bias"], -0.1, places=6)
 
 
+class FlowModels(unittest.TestCase):
+    def test_strobe_example_checks_pass(self):
+        model = med.flow_model("strobe", med._example_flow("strobe"))
+        self.assertEqual(len(model["checks"]), 2)
+        self.assertTrue(all(c.ok for c in model["checks"]))
+
+    def test_strobe_wrong_total_shows_both_sides(self):
+        data = med._example_flow("strobe")
+        data["assessed"] = 501
+        failed = [c for c in med.flow_model("strobe", data)["checks"] if not c.ok]
+        self.assertEqual(len(failed), 1)
+        self.assertEqual((failed[0].left, failed[0].right), (501, 500))
+
+    def test_strobe_reason_counts_enter_the_sum(self):
+        data = med._example_flow("strobe")
+        data["excluded"][0]["n"] = 25  # total becomes 31, assessed is 500
+        self.assertFalse(all(c.ok for c in med.flow_model("strobe", data)["checks"]))
+
+    def test_prisma_example_chain_has_four_checks(self):
+        model = med.flow_model("prisma", med._example_flow("prisma"))
+        self.assertEqual(len(model["checks"]), 4)
+        self.assertTrue(all(c.ok for c in model["checks"]))
+
+    def test_prisma_one_break_is_reported_by_both_equations(self):
+        data = med._example_flow("prisma")
+        data["records_screened"] = 1049
+        failed = [c for c in med.flow_model("prisma", data)["checks"] if not c.ok]
+        self.assertIn("identified (databases + registers) = duplicates + screened",
+                      [c.label for c in failed])
+        self.assertIn("screened = records excluded + reports sought",
+                      [c.label for c in failed])
+
+    def test_prisma_more_studies_than_reports_warns(self):
+        data = med._example_flow("prisma")
+        data["reports_excluded"] = [{"reason": "Wrong population", "n": 40},
+                                    {"reason": "Wrong outcome", "n": 10}]
+        data["reports_included"] = 90
+        data["studies_included"] = 100
+        model = med.flow_model("prisma", data)
+        self.assertTrue(all(c.ok for c in model["checks"]))
+        self.assertTrue(any("more studies than reports" in w
+                            for w in model["warnings"]))
+
+    def test_consort_example_equations(self):
+        model = med.flow_model("consort", med._example_flow("consort"))
+        self.assertEqual(len(model["checks"]), 6)
+        self.assertTrue(all(c.ok for c in model["checks"]))
+
+    def test_consort_arm_break_is_named_after_the_arm(self):
+        data = med._example_flow("consort")
+        data["arms"][0]["analysed"] = 211
+        failed = [c for c in med.flow_model("consort", data)["checks"] if not c.ok]
+        self.assertEqual(len(failed), 1)
+        self.assertIn("Intervention: received = analysed + lost/excluded",
+                      failed[0].label)
+
+    def test_bad_counts_are_refused_with_the_field_named(self):
+        cases = [
+            ("assessed", -1), ("included", True), ("analysed", 1.5),
+        ]
+        for key, value in cases:
+            data = med._example_flow("strobe")
+            data[key] = value
+            with self.assertRaises(med.FigureError) as caught:
+                med.flow_model("strobe", data)
+            self.assertIn(key, str(caught.exception))
+        data = med._example_flow("strobe")
+        del data["included"]
+        with self.assertRaises(med.FigureError):
+            med.flow_model("strobe", data)
+
+    def test_bad_reason_lists_are_refused(self):
+        for value in ("nope", [{"reason": "", "n": 1}],
+                      [{"reason": "ok", "n": -1}], [{"n": 1}]):
+            data = med._example_flow("strobe")
+            data["excluded"] = value
+            with self.assertRaises(med.FigureError):
+                med.flow_model("strobe", data)
+
+    def test_consort_needs_two_to_four_arms(self):
+        data = med._example_flow("consort")
+        data["arms"] = data["arms"][:1]
+        with self.assertRaises(med.FigureError):
+            med.flow_model("consort", data)
+        data["arms"] = data["arms"] * 5
+        with self.assertRaises(med.FigureError):
+            med.flow_model("consort", data)
+
+    def test_unknown_design_and_non_object_input(self):
+        with self.assertRaises(med.FigureError):
+            med.flow_model("bogus", {})
+        with self.assertRaises(med.FigureError):
+            med.flow_model("strobe", ["not", "an", "object"])
+
+
+class FlowLayout(unittest.TestCase):
+    def test_every_box_stays_inside_its_canvas(self):
+        # This is the invariant that caught a clipped bottom row during
+        # development: the canvas must contain the text that is drawn.
+        for design in ("strobe", "prisma", "consort"):
+            model = med.flow_model(design, med._example_flow(design))
+            layout = med.flow_layout(model, 183)
+            xmin, xmax, ymin, ymax = layout["canvas"]
+            self.assertGreater(xmax, 0)
+            self.assertLess(ymin, ymax)
+            for box in layout["boxes"]:
+                self.assertGreaterEqual(box["x"] - box["w"] / 2, xmin - 1e-6)
+                self.assertLessEqual(box["x"] + box["w"] / 2, xmax + 1e-6)
+                self.assertGreaterEqual(box["y"] - box["h"] / 2, ymin - 1e-6)
+                self.assertLessEqual(box["y"] + box["h"] / 2, ymax + 1e-6)
+            self.assertTrue(layout["arrows"])
+
+
+class FlowCli(unittest.TestCase):
+    def setUp(self):
+        self.dir = tempfile.mkdtemp()
+
+    def write_json(self, name: str, data: dict, encoding: str = "utf-8") -> str:
+        path = os.path.join(self.dir, name)
+        with open(path, "w", encoding=encoding) as fh:
+            json.dump(data, fh, ensure_ascii=False)
+        return path
+
+    def test_example_option_prints_a_usable_template(self):
+        for design in ("strobe", "prisma", "consort"):
+            code, out, err = run_main(["flow", "--example", design])
+            self.assertEqual(code, 0, err)
+            data = json.loads(out)
+            self.assertEqual(data["design"], design)
+            self.assertTrue(all(c.ok for c in med.flow_model(design, data)["checks"]))
+
+    def test_missing_json_is_a_usage_error(self):
+        code, _, err = run_main(["flow"])
+        self.assertEqual(code, 2)
+        self.assertIn("input JSON", err)
+
+    def test_wrong_counts_refuse_to_draw(self):
+        data = med._example_flow("strobe")
+        data["assessed"] = 501
+        path = self.write_json("wrong.json", data)
+        out = os.path.join(self.dir, "wrong.png")
+        code, stdout, err = run_main(["flow", path, "--out", out])
+        self.assertEqual(code, 2)
+        self.assertIn("do not add up", err)
+        self.assertIn("FAIL", err)
+        self.assertNotIn("```review", stdout)
+        self.assertFalse(os.path.exists(out))
+
+    def test_bad_json_and_missing_design(self):
+        path = os.path.join(self.dir, "bad.json")
+        with open(path, "w", encoding="utf-8") as fh:
+            fh.write("not json")
+        code, _, err = run_main(["flow", path])
+        self.assertEqual(code, 2)
+        self.assertIn("invalid JSON", err)
+        empty = self.write_json("empty.json", {})
+        code, _, err = run_main(["flow", empty])
+        self.assertEqual(code, 2)
+        self.assertIn("design", err)
+
+    def test_out_cannot_overwrite_the_input(self):
+        path = self.write_json("f.json", med._example_flow("strobe"))
+        code, _, err = run_main(["flow", path, "--out", path])
+        self.assertEqual(code, 2)
+        self.assertIn("overwrite the input", err)
+
+    def test_utf16_json_is_read(self):
+        path = self.write_json("utf16.json", med._example_flow("strobe"),
+                               encoding="utf-16")
+        out = os.path.join(self.dir, "utf16.png")
+        code, stdout, err = run_main(["flow", path, "--out", out])
+        self.assertIn(code, (0, 3), err)
+        self.assertEqual(review_of(stdout)["design"], "strobe")
+
+    @unittest.skipUnless(HAVE_MPL, "matplotlib not installed")
+    def test_valid_file_renders_a_double_column_png(self):
+        path = self.write_json("prisma.json", med._example_flow("prisma"))
+        out = os.path.join(self.dir, "prisma.png")
+        code, stdout, err = run_main(["flow", path, "--out", out])
+        self.assertEqual(code, 0, err)
+        payload = review_of(stdout)
+        self.assertEqual(payload["gate"], "med-figures/flow")
+        self.assertEqual(len(payload["checks"]), 4)
+        self.assertTrue(payload["rendered"])
+        self.assertTrue(os.path.isfile(out))
+        width, _ = png_size(out)
+        self.assertGreater(width, 1800)
+        self.assertGreater(os.path.getsize(out), 30000)
+
+    @unittest.skipUnless(HAVE_MPL, "matplotlib not installed")
+    def test_missing_matplotlib_keeps_the_check_report(self):
+        path = self.write_json("strobe.json", med._example_flow("strobe"))
+        out = os.path.join(self.dir, "strobe.png")
+        with mock.patch.object(med, "_import_pyplot", return_value=None):
+            code, stdout, _ = run_main(["flow", path, "--out", out])
+        self.assertEqual(code, 3)
+        payload = review_of(stdout)
+        self.assertFalse(payload["rendered"])
+        self.assertTrue(any("matplotlib is not installed" in w
+                            for w in payload["warnings"]))
+        self.assertFalse(os.path.exists(out))
+
+    def test_the_printed_output_survives_a_gbk_console(self):
+        path = self.write_json("strobe.json", med._example_flow("strobe"))
+        out = os.path.join(self.dir, "strobe.png")
+        code, stdout, stderr = run_main(["flow", path, "--out", out])
+        (stdout + stderr).encode("gbk")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

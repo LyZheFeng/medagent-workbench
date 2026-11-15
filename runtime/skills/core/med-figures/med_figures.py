@@ -1,24 +1,30 @@
 #!/usr/bin/env python3
-"""Medical publication figures from data: ROC, forest, Kaplan-Meier, Bland-Altman.
+"""Medical publication figures from data: ROC, forest, Kaplan-Meier,
+Bland-Altman, and STROBE/PRISMA/CONSORT flow diagrams.
 
 The numbers are computed here, in stdlib, so they can be checked and so the
 script still reports them when matplotlib is missing; matplotlib only draws.
-Every run writes a PNG at 300 dpi (optionally a PDF beside it) and one ```review
-JSON block carrying the input file's sha256, the estimates, the warnings and the
-output paths - a figure that cannot be traced to the code and data that made it
-is the thing this script exists to prevent.
+Flow diagrams are laid out only after every count identity holds: a diagram
+whose boxes do not sum is refused, not drawn. Every run writes a PNG at 300 dpi
+(optionally a PDF beside it) and one ```review JSON block carrying the input
+file's sha256, the estimates/checks, the warnings and the output paths - a
+figure that cannot be traced to the code and data that made it is the thing this
+script exists to prevent.
 
 Chart forms follow the med-figures skill: ROC with an AUC confidence interval,
 a forest plot with a heterogeneity footnote, Kaplan-Meier with a number-at-risk
-table and the log-rank p, Bland-Altman with the bias and limits of agreement.
-The style is publication-figures/openscience.mplstyle, resolved beside this
-skill's directory; journal column widths are in millimetres.
+table and the log-rank p, Bland-Altman with the bias and limits of agreement,
+and the three reporting-guideline flow diagrams. The style is
+publication-figures/openscience.mplstyle, resolved beside this skill's
+directory; journal column widths are in millimetres.
 
 Usage:
     python med_figures.py roc scores.csv [--score col] [--label col] [--cutoff x]
     python med_figures.py forest studies.csv [--measure rr|or|hr|md] [--model random|fixed]
     python med_figures.py km survival.csv [--time col] [--event col] [--group col] [--times 0,12,24]
     python med_figures.py bland-altman pairs.csv [--a col] [--b col]
+    python med_figures.py flow flow.json [--design strobe|prisma|consort]
+    python med_figures.py flow --example prisma        # print a filled template
     python med_figures.py km data.csv --out figures/km.png --vector
 
 Exit codes: 0 figure written; 2 bad input/usage; 3 estimates computed but no
@@ -37,6 +43,7 @@ import json
 import math
 import random
 import sys
+import textwrap
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -629,6 +636,518 @@ def bland_altman_analysis(a: list[float], b: list[float]) -> dict:
 
 
 # --------------------------------------------------------------------------- #
+# Flow diagrams: counts first, picture second
+# --------------------------------------------------------------------------- #
+
+
+@dataclass(frozen=True)
+class FlowCheck:
+    """One arithmetic identity the diagram depends on; it must hold exactly."""
+
+    label: str
+    left: float
+    right: float
+
+    @property
+    def ok(self) -> bool:
+        return self.left == self.right
+
+
+def _count(n: int) -> str:
+    return f"{n:,}"
+
+
+def _int_field(data: dict, key: str, where: str) -> int:
+    if key not in data:
+        raise FigureError(f"{where}: missing required key {key!r}")
+    value = data[key]
+    if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+        raise FigureError(f"{where}: {key!r} must be a non-negative integer, "
+                          f"got {value!r}")
+    return value
+
+
+def _reasons_field(data: dict, key: str, where: str) -> list[dict]:
+    if key not in data:
+        return []
+    value = data[key]
+    if not isinstance(value, list):
+        raise FigureError(f"{where}: {key!r} must be a list of "
+                          '{"reason": "...", "n": N}')
+    out = []
+    for i, item in enumerate(value):
+        if not isinstance(item, dict):
+            raise FigureError(f"{where}: {key}[{i}] must be an object")
+        reason = item.get("reason")
+        if not isinstance(reason, str) or not reason.strip():
+            raise FigureError(f"{where}: {key}[{i}].reason must be a non-empty string")
+        n = item.get("n")
+        if isinstance(n, bool) or not isinstance(n, int) or n < 0:
+            raise FigureError(f"{where}: {key}[{i}].n must be a non-negative integer")
+        out.append({"reason": reason.strip(), "n": n})
+    return out
+
+
+def _reason_total(reasons: list[dict]) -> int:
+    return sum(r["n"] for r in reasons)
+
+
+def strobe_model(data: dict) -> dict:
+    where = "strobe"
+    assessed = _int_field(data, "assessed", where)
+    included = _int_field(data, "included", where)
+    analysed = _int_field(data, "analysed", where)
+    excluded = _reasons_field(data, "excluded", where)
+    lost = _reasons_field(data, "lost", where)
+    checks = [
+        FlowCheck("assessed = excluded + included", assessed,
+                  _reason_total(excluded) + included),
+        FlowCheck("included = lost + analysed", included,
+                  _reason_total(lost) + analysed),
+    ]
+    warnings = []
+    if not excluded:
+        warnings.append("no exclusions declared: assessed must equal included")
+    if not lost:
+        warnings.append("no losses declared: included must equal analysed")
+    return {
+        "design": "strobe",
+        "title": str(data.get("title") or "Participant flow"),
+        "assessed": assessed,
+        "included": included,
+        "analysed": analysed,
+        "excluded": excluded,
+        "lost": lost,
+        "checks": checks,
+        "warnings": warnings,
+        "counts": {"assessed": assessed, "excluded": _reason_total(excluded),
+                   "included": included, "lost": _reason_total(lost),
+                   "analysed": analysed},
+    }
+
+
+def prisma_model(data: dict) -> dict:
+    where = "prisma"
+    databases = _int_field(data, "databases", where)
+    registers = _int_field(data, "registers", where)
+    duplicates = _int_field(data, "duplicates", where)
+    screened = _int_field(data, "records_screened", where)
+    records_excluded = _int_field(data, "records_excluded", where)
+    sought = _int_field(data, "reports_sought", where)
+    not_retrieved = _int_field(data, "reports_not_retrieved", where)
+    assessed = _int_field(data, "reports_assessed", where)
+    reports_excluded = _reasons_field(data, "reports_excluded", where)
+    reports_included = _int_field(data, "reports_included", where)
+    studies_included = _int_field(data, "studies_included", where)
+    checks = [
+        FlowCheck("identified (databases + registers) = duplicates + screened",
+                  databases + registers, duplicates + screened),
+        FlowCheck("screened = records excluded + reports sought",
+                  screened, records_excluded + sought),
+        FlowCheck("sought = not retrieved + assessed",
+                  sought, not_retrieved + assessed),
+        FlowCheck("assessed = reports excluded + reports included",
+                  assessed, _reason_total(reports_excluded) + reports_included),
+    ]
+    warnings = []
+    if studies_included > reports_included:
+        warnings.append("more studies than reports included: a study can have "
+                        "several reports, never fewer")
+    if studies_included == 0:
+        warnings.append("no studies included; an empty review usually reports why")
+    return {
+        "design": "prisma",
+        "title": str(data.get("title") or "PRISMA 2020 flow"),
+        "databases": databases,
+        "registers": registers,
+        "duplicates": duplicates,
+        "records_screened": screened,
+        "records_excluded": records_excluded,
+        "reports_sought": sought,
+        "reports_not_retrieved": not_retrieved,
+        "reports_assessed": assessed,
+        "reports_excluded": reports_excluded,
+        "reports_included": reports_included,
+        "studies_included": studies_included,
+        "checks": checks,
+        "warnings": warnings,
+        "counts": {"databases": databases, "registers": registers,
+                   "duplicates": duplicates, "records_screened": screened,
+                   "records_excluded": records_excluded, "reports_sought": sought,
+                   "reports_not_retrieved": not_retrieved,
+                   "reports_assessed": assessed,
+                   "reports_excluded": _reason_total(reports_excluded),
+                   "reports_included": reports_included,
+                   "studies_included": studies_included},
+    }
+
+
+def consort_model(data: dict) -> dict:
+    where = "consort"
+    assessed = _int_field(data, "assessed", where)
+    randomised = _int_field(data, "randomised", where)
+    excluded = _reasons_field(data, "excluded", where)
+    raw_arms = data.get("arms")
+    if not isinstance(raw_arms, list) or not 2 <= len(raw_arms) <= 4:
+        raise FigureError("consort: 'arms' must be a list of two to four arms")
+    arms = []
+    checks = [
+        FlowCheck("assessed = excluded + randomised", assessed,
+                  _reason_total(excluded) + randomised),
+        FlowCheck("randomised = sum of arm allocations", randomised,
+                  sum(_int_field(a, "allocated", f"consort: arm {i + 1}")
+                      for i, a in enumerate(raw_arms) if isinstance(a, dict))),
+    ]
+    for i, raw in enumerate(raw_arms):
+        arm_where = f"consort: arm {i + 1}"
+        if not isinstance(raw, dict):
+            raise FigureError(f"{arm_where} must be an object")
+        name = raw.get("name")
+        if not isinstance(name, str) or not name.strip():
+            raise FigureError(f"{arm_where}: 'name' must be a non-empty string")
+        allocated = _int_field(raw, "allocated", arm_where)
+        received = _int_field(raw, "received", arm_where)
+        analysed = _int_field(raw, "analysed", arm_where)
+        not_received = _reasons_field(raw, "not_received", arm_where)
+        lost = _reasons_field(raw, "lost", arm_where)
+        excluded_analysis = _reasons_field(raw, "excluded_analysis", arm_where)
+        checks.append(FlowCheck(f"{name}: allocated = did not receive + received",
+                                allocated, _reason_total(not_received) + received))
+        checks.append(FlowCheck(
+            f"{name}: received = analysed + lost/excluded",
+            received,
+            analysed + _reason_total(lost) + _reason_total(excluded_analysis)))
+        arms.append({"name": name.strip(), "allocated": allocated,
+                     "received": received, "analysed": analysed,
+                     "not_received": not_received, "lost": lost,
+                     "excluded_analysis": excluded_analysis})
+    warnings = []
+    if not excluded:
+        warnings.append("no exclusions before randomisation declared")
+    for arm in arms:
+        if arm["analysed"] == 0:
+            warnings.append(f"arm {arm['name']!r} analysed 0 patients")
+    return {
+        "design": "consort",
+        "title": str(data.get("title") or "CONSORT flow"),
+        "assessed": assessed,
+        "randomised": randomised,
+        "excluded": excluded,
+        "arms": arms,
+        "checks": checks,
+        "warnings": warnings,
+        "counts": {"assessed": assessed, "excluded": _reason_total(excluded),
+                   "randomised": randomised,
+                   "arms": {a["name"]: {"allocated": a["allocated"],
+                                        "received": a["received"],
+                                        "analysed": a["analysed"]}
+                            for a in arms}},
+    }
+
+
+def flow_model(design: str, data: dict) -> dict:
+    if not isinstance(data, dict):
+        raise FigureError("flow input must be a JSON object")
+    builders = {"strobe": strobe_model, "prisma": prisma_model,
+                "consort": consort_model}
+    if design not in builders:
+        raise FigureError(f"unknown flow design {design!r} "
+                          "(one of strobe, prisma, consort)")
+    return builders[design](data)
+
+
+def _flow_side_text(head: str, reasons: list[dict]) -> str:
+    # The total sits on its own line: a long head plus "(n = 1,234)" wraps
+    # into a broken count like "(n =" / "1,234)" in a narrow side box.
+    lines = [head, f"(n = {_count(_reason_total(reasons))})"]
+    for reason in reasons:
+        lines.append(f"• {reason['reason']}")
+        lines.append(f"  (n = {_count(reason['n'])})")
+    return "\n".join(lines)
+
+
+def flow_layout(model: dict, width_mm: float) -> dict:
+    """Lay the model out in data units; text is wrapped for the chosen width."""
+    design = model["design"]
+    xmax = {"strobe": 124.0, "prisma": 138.0}.get(design)
+    if design == "consort":
+        xmax = 30 + 72 * (len(model["arms"]) - 1) + 36 + 14 + 8
+    width_in = width_mm / 25.4
+    unit = width_in * 72 / xmax          # points per data unit
+    line_h = 10.5 / unit                 # one 8 pt line, in data units
+    gap = 2.0 * line_h
+    boxes: list[dict] = []
+    arrows: list[tuple[float, float, float, float]] = []
+    bands: list[dict] = []
+
+    def wrap(text: str, width_units: float) -> str:
+        chars = max(10, int(width_units * unit / 4.6))
+        return "\n".join(line for raw in text.split("\n")
+                         for line in (textwrap.wrap(raw, chars) or [""]))
+
+    def place(x: float, top: float, width: float, text: str,
+              kind: str = "main") -> tuple[float, float]:
+        text = wrap(text, width)
+        lines = text.count("\n") + 1
+        height = lines * line_h * 1.3 + 1.3 * line_h
+        boxes.append({"x": x, "y": top - height / 2, "w": width, "h": height,
+                      "text": text, "kind": kind})
+        return top - height, top - height / 2
+
+    def side_arrow(main_x: float, main_w: float, cy: float,
+                   side_x: float, side_w: float) -> None:
+        arrows.append((main_x + main_w / 2, cy, side_x - side_w / 2, cy))
+
+    def v_arrow(x: float, y1: float, y2: float) -> None:
+        arrows.append((x, y1, x, y2))
+
+    if design == "strobe":
+        main_x, side_x, main_w, side_w = 42.0, 97.0, 50.0, 40.0
+        top = 0.0
+        bottom, cy = place(main_x, top, main_w,
+                           f"Assessed for eligibility\n(n = {_count(model['assessed'])})")
+        row_bottom = bottom
+        if model["excluded"]:
+            side_bottom, side_cy = place(
+                side_x, top, side_w,
+                _flow_side_text("Excluded", model["excluded"]), "side")
+            side_arrow(main_x, main_w, cy, side_x, side_w)
+            row_bottom = min(row_bottom, side_bottom)
+        top = row_bottom - gap
+        bottom, cy = place(main_x, top, main_w,
+                           f"Included in study\n(n = {_count(model['included'])})")
+        v_arrow(main_x, row_bottom, top)
+        row_bottom = bottom
+        if model["lost"]:
+            side_bottom, side_cy = place(
+                side_x, top, side_w,
+                _flow_side_text("Lost / excluded from analysis", model["lost"]),
+                "side")
+            side_arrow(main_x, main_w, cy, side_x, side_w)
+            row_bottom = min(row_bottom, side_bottom)
+        top = row_bottom - gap
+        analysed_bottom, _ = place(
+            main_x, top, main_w, f"Analysed\n(n = {_count(model['analysed'])})")
+        v_arrow(main_x, row_bottom, top)
+        ymin = analysed_bottom - 3 * line_h
+        return {"boxes": boxes, "arrows": arrows, "bands": bands,
+                "stage_labels": [],
+                "canvas": (0.0, xmax, ymin, 0.3 * line_h),
+                "title": model["title"],
+                "footnote": "n = number of participants; every branch must add up."}
+
+    if design == "prisma":
+        main_x, side_x, main_w, side_w = 46.0, 103.0, 54.0, 40.0
+        rows = [
+            ("Identification",
+             f"Records identified from databases\n(n = {_count(model['databases'])})\n"
+             f"Registers (n = {_count(model['registers'])})",
+             f"Duplicates removed\n(n = {_count(model['duplicates'])})"),
+            ("Screening",
+             f"Records screened\n(n = {_count(model['records_screened'])})",
+             f"Records excluded\n(n = {_count(model['records_excluded'])})"),
+            ("Screening",
+             f"Reports sought for retrieval\n(n = {_count(model['reports_sought'])})",
+             f"Reports not retrieved\n(n = {_count(model['reports_not_retrieved'])})"),
+            ("Screening",
+             f"Reports assessed for eligibility\n(n = {_count(model['reports_assessed'])})",
+             _flow_side_text("Reports excluded", model["reports_excluded"])
+             if model["reports_excluded"] else
+             f"Reports excluded (n = {_count(_reason_total(model['reports_excluded']))})"),
+            ("Included",
+             f"Studies included in review\n(n = {_count(model['studies_included'])})\n"
+             f"Reports of included studies (n = {_count(model['reports_included'])})",
+             None),
+        ]
+        top = 0.0
+        current_phase = None
+        last_bottom = 0.0
+        for index, (phase, main_text, side_text) in enumerate(rows):
+            if phase != current_phase:
+                bands.append({"top": top, "bottom": top, "label": phase})
+                current_phase = phase
+            bottom, cy = place(main_x, top, main_w, main_text)
+            row_bottom = bottom
+            if side_text:
+                side_bottom, _ = place(side_x, top, side_w, side_text, "side")
+                side_arrow(main_x, main_w, cy, side_x, side_w)
+                row_bottom = min(row_bottom, side_bottom)
+            bands[-1]["bottom"] = row_bottom - gap / 2
+            last_bottom = row_bottom
+            if index < len(rows) - 1:
+                top = row_bottom - gap
+                v_arrow(main_x, bottom, top)
+        ymin = last_bottom - 3 * line_h
+        return {"boxes": boxes, "arrows": arrows, "bands": bands,
+                "stage_labels": [],
+                "canvas": (0.0, xmax, ymin, 0.3 * line_h),
+                "title": model["title"],
+                "footnote": "n = number of records, reports or studies, as labelled; "
+                            "every branch must add up."}
+
+    # CONSORT: one column per arm, with its own side boxes.
+    main_w, side_w, step, side_offset = 36.0, 28.0, 72.0, 36.0
+    main_xs = [30.0 + i * step for i in range(len(model["arms"]))]
+    side_xs = [x + side_offset for x in main_xs]
+    center = (main_xs[0] + main_xs[-1]) / 2.0
+    stage_labels: list[dict] = []
+    top = 0.0
+    bottom, cy = place(center, top, 50.0,
+                       f"Assessed for eligibility\n(n = {_count(model['assessed'])})")
+    stage_labels.append({"label": "Enrolment", "y": cy})
+    row_bottom = bottom
+    if model["excluded"]:
+        side_bottom, _ = place(side_xs[-1], top, side_w,
+                               _flow_side_text("Excluded", model["excluded"]),
+                               "side")
+        side_arrow(center, 50.0, cy, side_xs[-1], side_w)
+        row_bottom = min(row_bottom, side_bottom)
+    top = row_bottom - gap
+    bottom, cy = place(center, top, 50.0,
+                       f"Randomised\n(n = {_count(model['randomised'])})")
+    v_arrow(center, row_bottom, top)
+    row_bottom = bottom
+    top = row_bottom - gap
+    allocated_bottoms = []
+    allocated_cys = []
+    for arm, x in zip(model["arms"], main_xs):
+        b, cy = place(x, top, main_w,
+                      f"{arm['name']}\nAllocated (n = {_count(arm['allocated'])})")
+        allocated_bottoms.append(b)
+        allocated_cys.append(cy)
+        arrows.append((center, row_bottom, x, top))
+    stage_labels.append({"label": "Allocation",
+                         "y": sum(allocated_cys) / len(allocated_cys)})
+    top = min(allocated_bottoms) - gap
+    received_bottoms = []
+    received_cys = []
+    for arm, x, sx in zip(model["arms"], main_xs, side_xs):
+        b, cy = place(x, top, main_w,
+                      f"Received allocated\nintervention (n = {_count(arm['received'])})")
+        received_bottoms.append(b)
+        received_cys.append(cy)
+        row_bottom = b
+        if arm["not_received"]:
+            sb, _ = place(sx, top, side_w,
+                          _flow_side_text("Did not receive allocated intervention",
+                                          arm["not_received"]), "side")
+            side_arrow(x, main_w, cy, sx, side_w)
+            row_bottom = min(row_bottom, sb)
+        received_bottoms[-1] = row_bottom
+    stage_labels.append({"label": "Follow-up",
+                         "y": sum(received_cys) / len(received_cys)})
+    top = min(received_bottoms) - gap
+    analysed_bottoms = []
+    analysed_cys = []
+    for arm, x, sx in zip(model["arms"], main_xs, side_xs):
+        b, cy = place(x, top, main_w,
+                      f"Analysed (n = {_count(arm['analysed'])})")
+        analysed_bottoms.append(b)
+        analysed_cys.append(cy)
+        reasons = arm["lost"] + arm["excluded_analysis"]
+        if reasons:
+            sb, _ = place(sx, top, side_w,
+                          _flow_side_text("Lost / excluded from analysis", reasons),
+                          "side")
+            side_arrow(x, main_w, cy, sx, side_w)
+            analysed_bottoms[-1] = min(b, sb)
+    stage_labels.append({"label": "Analysis",
+                         "y": sum(analysed_cys) / len(analysed_cys)})
+    ymin = min(analysed_bottoms) - 3 * line_h
+    footnote = ("n = number of participants; each arm must add up from "
+                "allocation to analysis.")
+    return {"boxes": boxes, "arrows": arrows, "bands": bands,
+            "stage_labels": stage_labels,
+            "canvas": (0.0, xmax, ymin, 0.3 * line_h),
+            "title": model["title"], "footnote": footnote}
+
+
+def render_flow(plt, model: dict, layout: dict, out: Path, vector: bool,
+                width_mm: float) -> list[dict]:
+    from matplotlib.patches import FancyBboxPatch
+    xmin, xmax, ymin, ymax = layout["canvas"]
+    width_in = width_mm / 25.4
+    fig = plt.figure(figsize=(width_in, width_in * (ymax - ymin) / xmax))
+    ax = fig.add_axes([0.02, 0.05, 0.96, 0.88])
+    ax.set_xlim(xmin, xmax)
+    ax.set_ylim(ymin, ymax)
+    ax.axis("off")
+    for band in layout["bands"]:
+        ax.axhspan(band["bottom"], band["top"], color="#f7f5f0", zorder=0, lw=0)
+        ax.text(xmin + 4, (band["top"] + band["bottom"]) / 2, band["label"],
+                rotation=90, ha="center", va="center", fontsize=8,
+                color=MUTED, zorder=1)
+    for item in layout.get("stage_labels", []):
+        ax.text(xmin + 4, item["y"], item["label"], rotation=90,
+                ha="center", va="center", fontsize=8, color=MUTED, zorder=1)
+    for box in layout["boxes"]:
+        patch = FancyBboxPatch(
+            (box["x"] - box["w"] / 2, box["y"] - box["h"] / 2),
+            box["w"], box["h"],
+            boxstyle="round,pad=0,rounding_size=1.2",
+            linewidth=0.9, edgecolor=MUTED,
+            facecolor="white" if box["kind"] == "main" else "#fbfaf7",
+            zorder=2,
+        )
+        ax.add_patch(patch)
+        ax.text(box["x"], box["y"], box["text"], ha="center", va="center",
+                fontsize=8, color=INK, linespacing=1.35, zorder=3)
+    for x1, y1, x2, y2 in layout["arrows"]:
+        ax.annotate("", xy=(x2, y2), xytext=(x1, y1),
+                    arrowprops=dict(arrowstyle="-|>", color=MUTED, lw=1.0,
+                                    shrinkA=0, shrinkB=0, mutation_scale=9),
+                    zorder=4)
+    fig.text(0.01, 0.985, layout["title"], ha="left", va="top",
+             fontsize=11, color=INK, fontweight="bold")
+    fig.text(0.01, 0.008, layout["footnote"], ha="left", va="bottom",
+             fontsize=7.5, color=MUTED)
+    return _save(plt, fig, out, vector)
+
+
+def _example_flow(design: str) -> dict:
+    examples = {
+        "strobe": {
+            "design": "strobe", "title": "Participant flow",
+            "assessed": 500,
+            "excluded": [{"reason": "Not meeting inclusion criteria", "n": 24},
+                         {"reason": "Declined to participate", "n": 6}],
+            "included": 470,
+            "lost": [{"reason": "Lost to follow-up", "n": 10}],
+            "analysed": 460,
+        },
+        "prisma": {
+            "design": "prisma", "title": "PRISMA 2020 flow",
+            "databases": 1200, "registers": 50,
+            "duplicates": 200, "records_screened": 1050,
+            "records_excluded": 900, "reports_sought": 150,
+            "reports_not_retrieved": 10, "reports_assessed": 140,
+            "reports_excluded": [{"reason": "Wrong population", "n": 20},
+                                 {"reason": "Wrong outcome", "n": 10}],
+            "reports_included": 110, "studies_included": 100,
+        },
+        "consort": {
+            "design": "consort", "title": "CONSORT 2010 flow",
+            "assessed": 500,
+            "excluded": [{"reason": "Not meeting inclusion criteria", "n": 50}],
+            "randomised": 450,
+            "arms": [
+                {"name": "Intervention", "allocated": 225, "received": 220,
+                 "not_received": [{"reason": "Withdrew before treatment", "n": 5}],
+                 "lost": [{"reason": "Lost to follow-up", "n": 10}],
+                 "analysed": 210},
+                {"name": "Control", "allocated": 225, "received": 225,
+                 "not_received": [],
+                 "lost": [{"reason": "Lost to follow-up", "n": 15}],
+                 "analysed": 210},
+            ],
+        },
+    }
+    if design not in examples:
+        raise FigureError(f"unknown example {design!r}")
+    return examples[design]
+
+
+# --------------------------------------------------------------------------- #
 # Rendering
 # --------------------------------------------------------------------------- #
 
@@ -1072,6 +1591,88 @@ def cmd_km(ns) -> int:
                    time_unit=ns.time_unit)
 
 
+def cmd_flow(ns) -> int:
+    if ns.example:
+        print(json.dumps(_example_flow(ns.example), ensure_ascii=False, indent=2))
+        return 0
+    if not ns.json:
+        print("error: flow needs an input JSON, or --example "
+              "strobe|prisma|consort", file=sys.stderr)
+        return 2
+    path = Path(ns.json)
+    if not path.is_file():
+        raise FigureError(f"no such file: {path}")
+    raw = path.read_bytes()
+    try:
+        if raw[:2] in (b"\xff\xfe", b"\xfe\xff"):
+            data = json.loads(raw.decode("utf-16"))
+        else:
+            data = json.loads(raw.decode("utf-8-sig"))
+    except UnicodeDecodeError as e:
+        raise FigureError(f"{path.name}: not UTF-8/UTF-16 text ({e})")
+    except json.JSONDecodeError as e:
+        raise FigureError(f"{path.name}: invalid JSON at line {e.lineno}, "
+                          f"column {e.colno}: {e.msg}")
+    if not isinstance(data, dict):
+        raise FigureError("flow input must be a JSON object")
+    design = ns.design or data.get("design")
+    if not isinstance(design, str) or not design.strip():
+        raise FigureError("flow input needs a 'design' field "
+                          "(strobe, prisma, consort), or pass --design")
+    design = design.strip().lower()
+    declared = data.get("design")
+    if (ns.design and isinstance(declared, str)
+            and declared.strip().lower() != design):
+        raise FigureError(f"the JSON says design {declared!r} but --design "
+                          f"{ns.design!r} was passed")
+    model = flow_model(design, data)
+    failed = [c for c in model["checks"] if not c.ok]
+    if failed:
+        print("error: flow counts do not add up:", file=sys.stderr)
+        for check in model["checks"]:
+            print(f"  {'ok  ' if check.ok else 'FAIL'} {check.label}: "
+                  f"left {check.left:g}, right {check.right:g}", file=sys.stderr)
+        return 2
+    print(f"flow ({design}): {len(model['checks'])} count checks passed")
+    for warning in model["warnings"]:
+        print(f"  warning: {warning}")
+    out = Path(ns.out) if ns.out else path.with_name(f"{path.stem}_flow.png")
+    if out.resolve() == path.resolve():
+        raise FigureError("--out would overwrite the input JSON")
+    layout = flow_layout(model, ns.width_mm)
+    plt = _import_pyplot()
+    warnings = list(model["warnings"])
+    outputs: list[dict] = []
+    rendered = False
+    style = "none"
+    if plt is None:
+        warnings.append("matplotlib is not installed; figure not written "
+                        "(pip install matplotlib)")
+    else:
+        style = _apply_style(plt)
+        outputs = render_flow(plt, model, layout, out, ns.vector, ns.width_mm)
+        rendered = True
+    payload = {
+        "gate": f"{GATE}/flow",
+        "design": design,
+        "input": {"path": str(path),
+                  "sha256": hashlib.sha256(raw).hexdigest()},
+        "params": {"design": design, "width_mm": ns.width_mm,
+                   "title": model["title"]},
+        "checks": [{"label": c.label, "left": c.left, "right": c.right}
+                   for c in model["checks"]],
+        "counts": model["counts"],
+        "warnings": warnings,
+        "outputs": outputs,
+        "rendered": rendered,
+        "style": style,
+    }
+    print("```review")
+    print(json.dumps(payload, ensure_ascii=False, indent=1))
+    print("```")
+    return 0 if rendered else 3
+
+
 def cmd_bland_altman(ns) -> int:
     table = read_table(ns.csv, [ns.a, ns.b])
     a_values, b_values = [], []
@@ -1162,6 +1763,20 @@ def build_parser() -> argparse.ArgumentParser:
     ba.add_argument("--a-label", default="method A")
     ba.add_argument("--b-label", default="method B")
     ba.set_defaults(func=cmd_bland_altman, width_mm_default=89)
+
+    flow = sub.add_parser(
+        "flow", help="STROBE/PRISMA/CONSORT flow diagram with count checks")
+    flow.add_argument("json", nargs="?", help="input JSON (omit with --example)")
+    flow.add_argument("--design", choices=["strobe", "prisma", "consort"],
+                      help="schema to use (default: the JSON's design field)")
+    flow.add_argument("--example", choices=["strobe", "prisma", "consort"],
+                      help="print a filled template and exit")
+    flow.add_argument("--out", help="PNG path (default: <input>_flow.png)")
+    flow.add_argument("--vector", action="store_true",
+                      help="also write a PDF beside the PNG")
+    flow.add_argument("--width-mm", type=float, default=None,
+                      help="figure width in mm (default: 183, double column)")
+    flow.set_defaults(func=cmd_flow, width_mm_default=183)
     return parser
 
 

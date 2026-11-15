@@ -1,27 +1,30 @@
 ---
 name: med-figures
-description: Use when generating figures for medical research — ROC curves with CIs, forest plots of effect sizes, Kaplan-Meier survival curves with risk tables, Bland-Altman agreement plots, flow diagrams (STROBE/PRISMA/CONSORT), or diagnostic 2x2 summaries. Ships med_figures.py for the four statistical chart forms (numbers in stdlib, matplotlib only draws); flow diagrams and the 2x2 table-figure remain templates. Extends the publication-figures style with journal conventions (NEJM/Lancet-style clean axes, colorblind-safe palettes, 89/183 mm column widths).
+description: Use when generating figures for medical research — ROC curves with CIs, forest plots of effect sizes, Kaplan-Meier survival curves with risk tables, Bland-Altman agreement plots, flow diagrams (STROBE/PRISMA/CONSORT), or diagnostic 2x2 summaries. Ships med_figures.py for the four statistical chart forms and the three flow diagrams (numbers and count checks in stdlib, matplotlib only draws); the 2x2 table-figure remains a template. Extends the publication-figures style with journal conventions (NEJM/Lancet-style clean axes, colorblind-safe palettes, 89/183 mm column widths).
 ---
 
 # Medical publication figures
 
 Extends the bundled `publication-figures` style with the chart forms medical
-journals actually expect. The four statistical forms are scripted; run the
-script and adjust the figure, do not re-derive the statistics by hand.
+journals actually expect. The four statistical forms and the three flow
+diagrams are scripted; run the script and adjust the figure, do not re-derive
+the statistics or re-add the flow counts by hand.
 
 ## Scripted chart forms
 
 `med_figures.py` (next to this file, stdlib statistics + optional matplotlib)
-takes a CSV, computes the estimates with their intervals, writes a 300 dpi PNG
-and prints one ```review JSON block. The block carries the input file's sha256,
-the estimates, warnings and the output path, so the figure can be traced back
-to the data and code that produced it.
+takes a CSV (or a flow JSON), computes the estimates and checks, writes a
+300 dpi PNG and prints one ```review JSON block. The block carries the input
+file's sha256, the estimates/checks, warnings and the output path, so the figure
+can be traced back to the data and code that produced it.
 
 ```bash
 python "$XDG_CONFIG_HOME/opencode/skills/med-figures/med_figures.py" roc scores.csv
 python ... forest studies.csv --measure rr --model random
 python ... km survival.csv --times 0,12,24 --time-unit months
 python ... bland-altman pairs.csv --a-label "CT" --b-label "MRI"
+python ... flow flow.json                  # STROBE/PRISMA/CONSORT counts
+python ... flow --example prisma           # print a filled template
 ```
 
 Common options: `--out FIG.png` (default `<input>_<kind>.png`), `--vector`
@@ -54,6 +57,22 @@ said so, not estimated from the last follow-up.
 below 30 pairs the normal approximation is flagged. A trend in the differences
 (proportional bias) is not tested by the script — inspect the plot and say so.
 
+**Flow diagrams (STROBE/PRISMA/CONSORT)** — input is a JSON object with a
+`design` field plus its counts (all integers, no negatives). The script checks
+every branch **before drawing** and refuses with exit 2 when one does not add
+up, printing each equation with both sides; a flow diagram that does not sum is
+a finding, not a layout problem. `--example strobe|prisma|consort` prints a
+filled template to adapt.
+
+- `strobe`: `assessed`, `excluded` [{reason, n}], `included`, `lost` [{reason, n}], `analysed`; checks `assessed = excluded + included`, `included = lost + analysed`
+- `prisma`: `databases`, `registers`, `duplicates`, `records_screened`, `records_excluded`, `reports_sought`, `reports_not_retrieved`, `reports_assessed`, `reports_excluded` [{reason, n}], `reports_included`, `studies_included`; checks identified, screened, sought and assessed chains, and warns when studies exceed reports
+- `consort`: `assessed`, `excluded` [{reason, n}], `randomised`, `arms` [{name, allocated, received, not_received [{reason, n}], lost [{reason, n}], excluded_analysis [{reason, n}], analysed}]; checks the enrolment sum, the allocation sum, and both equations inside every arm
+
+The drawing is one column (STROBE), three phases with a side column (PRISMA),
+or one column per arm (CONSORT); excluded boxes carry each reason with its
+count. For a flow this schema cannot express (cluster trials, multiple
+randomisation stages), draw it by hand as matplotlib/SVG and say so.
+
 ## Chart-form conventions (all forms)
 
 **ROC** — diagonal reference line labeled "AUC 0.5"; the AUC in the legend with
@@ -76,12 +95,6 @@ labels; never a plain scatter without them.
 **2×2 accuracy summary** — table-figure: Sens/Spec/PPV/NPV each with Wilson CI;
 footnote the prevalence. Compute the numbers with `medical-stats/diag_stats.py`;
 the table layout is still hand-built.
-
-**Flow diagrams (STROBE/PRISMA/CONSORT)** — no script yet. Draw them as
-matplotlib/SVG in the workspace (not a drawing tool). Counts at every box must
-sum correctly (enrolled = excluded + analysed); excluded boxes carry reasons
-with counts. Check the arithmetic before the figure goes into a manuscript — a
-flow diagram that does not sum is a finding, not a layout problem.
 
 ## Style rules
 
