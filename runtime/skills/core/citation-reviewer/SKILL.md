@@ -1,6 +1,6 @@
 ---
 name: citation-reviewer
-description: Use when checking the citations of a medical manuscript, report, or review — verifying each reference exists and supports the claim it is attached to, detecting citation–claim mismatches, retracted papers, and fabricated DOIs/PMIDs. Runs a deterministic per-citation check and emits a findings list; it never silently fixes references.
+description: Use when checking the citations of a medical manuscript, report, or review — verifying each reference exists and supports the claim it is attached to, detecting citation–claim mismatches, retracted papers, and fabricated DOIs/PMIDs. Works through a fixed per-citation checklist (resolving DOIs/PMIDs through the installed literature connectors; there is no scripted verifier) and emits a findings list; it never silently fixes references.
 ---
 
 # Citation review (medical)
@@ -35,6 +35,10 @@ Write the full annotated list to `review/citation-check.md`.
 
 ## Boundaries
 
+- **No script does this check.** Each DOI/PMID is resolved through the
+  installed literature connectors and the judgement is yours; the same document
+  can get a different answer twice. Say which references you actually resolved
+  (and when), and mark the rest `needs-fulltext` rather than implying a pass.
 - Abstract-only judgment is provisional — mark claims needing full-text
   confirmation as `needs-fulltext` rather than passing them
 - Never rewrite a citation to make it fit; propose the correct replacement
