@@ -1,0 +1,46 @@
+name: gates CI
+
+# The deterministic gates that ship as skill scripts — domain-check,
+# stats-integrity, large-file, pdf-extract, record-run and the medical pair
+# (reporting-guidelines, medical-stats) — plus every other stdlib test under
+# scripts/dev/. They are Python, stdlib-only, and take about a second; nothing
+# else in the CI matrix builds or runs them, so a gate could rot silently.
+on:
+  pull_request:
+    paths:
+      - .github/workflows/gates-ci.yml
+      - runtime/skills/**
+      - runtime/tools/**
+      - scripts/dev/**
+  workflow_dispatch:
+  # Agents run these before pushing to master; once a day catches what slipped.
+  schedule:
+    - cron: "23 18 * * *"
+
+permissions:
+  contents: read
+
+# Only the newest commit on a ref needs a verdict.
+concurrency:
+  group: gates-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  python-gates:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      # No install step: every test is stdlib unittest, and any that needs a
+      # bundled sidecar skips itself rather than failing.
+      - name: Run every gate test
+        run: |
+          status=0
+          for f in scripts/dev/test_*.py; do
+            echo "== $f"
+            python "$f" || status=1
+          done
+          exit $status

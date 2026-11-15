@@ -87,7 +87,10 @@ local workspace + SQLite + JSONL provenance.
 - Avoid adding new Markdown docs unless requested — too many docs become debt.
 - Prefer minimal, verifiable changes; every step should produce a checkable result.
 - Before pushing to master, run the checks for what you touched: `pnpm typecheck && pnpm lint && pnpm test`
-  for the app, `cargo test -p osd-core` for the crates. CI on master runs only nightly.
+  for the app, `cargo test -p osd-core` for the crates, and
+  `for f in scripts/dev/test_*.py; do python "$f"; done` for anything under
+  `runtime/skills/**` (the deterministic gates are Python and take a second).
+  CI on master runs only nightly.
 - Do not write inferences as verified facts; tie conclusions to code or data.
 - New session workspaces are local git repos: the app initializes them and makes
   best-effort local commits after workspace file changes. Never set a remote or push.
