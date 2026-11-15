@@ -12,15 +12,22 @@ export interface LocaleMeta {
   shipped: boolean;
 }
 
+/** The language used when the user's system language is not one we ship — a
+ *  fallback, not the product's first language. The first language is Chinese:
+ *  it leads the switcher below, and the app's copy, docs and README are written
+ *  in it first. Keeping the fallback English means a Portuguese or Turkish user
+ *  reads English rather than Chinese they did not ask for. */
 export const DEFAULT_LOCALE = "en";
 
 /** localStorage key holding the user's chosen locale. */
 export const LOCALE_KEY = "ai4s.locale";
 
-/** Registration order is the switcher's display order. */
+/** Registration order is the switcher's display order. Chinese first: it is the
+ *  product's first language, and the only one whose copy is authored rather than
+ *  translated. */
 export const LOCALES: LocaleMeta[] = [
-  { code: "en", label: "English", nativeName: "English", dir: "ltr", shipped: true },
   { code: "zh-Hans", label: "Simplified Chinese", nativeName: "简体中文", dir: "ltr", shipped: true },
+  { code: "en", label: "English", nativeName: "English", dir: "ltr", shipped: true },
   { code: "ja", label: "Japanese", nativeName: "日本語", dir: "ltr", shipped: true },
   { code: "es", label: "Spanish", nativeName: "Español", dir: "ltr", shipped: true },
   { code: "de", label: "German", nativeName: "Deutsch", dir: "ltr", shipped: true },
