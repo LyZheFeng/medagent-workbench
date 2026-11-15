@@ -13,6 +13,15 @@ describe("DataFlowCard", () => {
     expect(screen.queryByText(/no errors|zero hallucination/i)).not.toBeInTheDocument();
   });
 
+  it("says where an API key actually lives, because provider keys left the config", () => {
+    // P0-1 moved provider keys into the OS credential store; this sentence used
+    // to call them "an app-private file", which described the old placement.
+    render(<DataFlowCard model="anthropic/claude" workspace={null} />);
+    expect(screen.getByText(/credential store/i)).toBeInTheDocument();
+    expect(screen.getByText(/MEDAGENT_KEY/)).toBeInTheDocument();
+    expect(screen.queryByText(/app-private file/i)).not.toBeInTheDocument();
+  });
+
   it("shows the unconfigured state without a workspace path", () => {
     render(<DataFlowCard model={null} workspace={null} />);
     expect(screen.getByText("no model configured")).toBeInTheDocument();

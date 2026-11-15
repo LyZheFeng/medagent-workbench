@@ -332,7 +332,7 @@
       "workspaceFiles": "您的工作区文件和原始数据",
       "codeExecution": "代码执行——Python 内核和 Jupyter 均在本地运行；数据集在此处处理，从不批量上传。",
       "sessionHistory": "会话历史和溯源记录，存储在应用的私有数据文件夹中。",
-      "providerKeys": "供应商密钥和登录令牌——存储于仅您本人账户可读的应用私有文件中；从不写入工作区、溯源记录、日志或导出内容。"
+      "providerKeys": "API 密钥——存放在本机操作系统凭据库（Windows 凭据管理器 / macOS 钥匙串 / Linux libsecret）；配置文件里只有 `{env:MEDAGENT_KEY_…}` 引用，密钥本身不在其中。OAuth 登录令牌保存在运行时自己的授权文件中，仅您的账户可读。两者都不会写入工作区、溯源记录、日志或导出内容。"
     },
     "remote": {
       "heading": "发送给您的模型供应商",

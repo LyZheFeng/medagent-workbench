@@ -333,7 +333,7 @@
       "workspaceFiles": "Los archivos de tu espacio de trabajo y los datos sin procesar",
       "codeExecution": "Ejecución de código — el kernel de Python y Jupyter se ejecutan localmente; los conjuntos de datos se procesan aquí y nunca se suben en bloque.",
       "sessionHistory": "Historial de sesiones y registros de procedencia, en la carpeta de datos privada de la app.",
-      "providerKeys": "Claves de proveedores y tokens de inicio de sesión — un archivo privado de la app legible solo por tu cuenta; nunca se escribe en el espacio de trabajo, la procedencia, los registros ni las exportaciones."
+      "providerKeys": "Claves de API — guardadas en el almacén de credenciales del sistema (Administrador de credenciales de Windows / Llavero de macOS / libsecret de Linux); el archivo de configuración solo contiene una referencia `{env:MEDAGENT_KEY_…}`, nunca la clave. Los tokens de inicio de sesión OAuth permanecen en el archivo de autenticación del runtime, legible solo por tu cuenta. Ninguno de los dos se escribe en el espacio de trabajo, la procedencia, los registros ni las exportaciones."
     },
     "remote": {
       "heading": "Enviado a tu proveedor de modelos",

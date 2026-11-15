@@ -357,7 +357,7 @@
       "workspaceFiles": "Your workspace files and raw data",
       "codeExecution": "Code execution — the Python kernel and Jupyter run locally; datasets are processed here, never uploaded in bulk.",
       "sessionHistory": "Session history and provenance records, in the app's private data folder.",
-      "providerKeys": "Provider keys and login tokens — an app-private file readable only by your account; never written to the workspace, provenance, logs, or exports."
+      "providerKeys": "API keys — kept in this machine's credential store (Windows Credential Manager / macOS Keychain / Linux libsecret); the config file holds only a `{env:MEDAGENT_KEY_…}` reference, never the key. OAuth login tokens stay in the runtime's own auth file, readable only by your account. Neither is written to the workspace, provenance, logs, or exports."
     },
     "remote": {
       "heading": "Sent to your model provider",

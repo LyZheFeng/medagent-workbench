@@ -333,7 +333,7 @@
       "workspaceFiles": "Ihre Arbeitsbereichsdateien und Rohdaten",
       "codeExecution": "Codeausführung — der Python-Kernel und Jupyter laufen lokal; Datensätze werden hier verarbeitet, nie in großen Mengen hochgeladen.",
       "sessionHistory": "Sitzungsverlauf und Herkunftsnachweise, im privaten Datenordner der App.",
-      "providerKeys": "Anbieterschlüssel und Anmelde-Token — eine app-private Datei, die nur von Ihrem Konto gelesen werden kann; wird nie in den Arbeitsbereich, die Herkunftsdaten, Protokolle oder Exporte geschrieben."
+      "providerKeys": "API-Schlüssel — im Anmeldeinformationsspeicher des Betriebssystems (Windows-Anmeldeinformationsverwaltung / macOS Keychain / Linux libsecret); die Konfigurationsdatei enthält nur eine `{env:MEDAGENT_KEY_…}`-Referenz, nie den Schlüssel. OAuth-Anmeldetoken bleiben in der Auth-Datei der Laufzeit und sind nur für Ihr Konto lesbar. Beides wird nie in den Arbeitsbereich, die Herkunftsdaten, Protokolle oder Exporte geschrieben."
     },
     "remote": {
       "heading": "An Ihren Modellanbieter gesendet",
