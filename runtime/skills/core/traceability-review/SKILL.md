@@ -90,6 +90,10 @@ When the audited document is a **medical** report/manuscript, additionally
 check reporting-guideline compliance: STROBE (observational), CONSORT (trials),
 CARE (case reports), STARD (diagnostic accuracy), PRISMA (reviews) — flag the
 absence of a guideline checklist, of a trial-registration number (NCT), of an
-ethics/consent statement, and of CIs on headline effect estimates. Use the
-citation-reviewer skill for per-citation verification.
+ethics/consent statement, and of CIs on headline effect estimates.
+
+Do not do that item list by eye: the `reporting-guidelines` skill runs it as a
+deterministic gate and emits the same `review` block, so its findings belong in
+this reply instead of your impressions. Use the citation-reviewer skill for
+per-citation verification.
 

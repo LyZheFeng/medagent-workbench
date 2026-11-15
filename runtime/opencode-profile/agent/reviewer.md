@@ -68,6 +68,13 @@ deterministic tooling and the exact finding vocabulary:
   CONSORT / CARE / STARD / PRISMA). Route per-citation checks through
   citation-reviewer.
 
+- **reporting-guidelines** — run its gate before calling a medical manuscript
+  finished: it reports which checklist items the text does not mention at all
+  (ethics, consent, registration, intervals, missing data, de-identification,
+  flow, harms). Take its findings instead of reading the checklist yourself, and
+  keep its boundary — a presence check is not a compliance verdict, so never
+  upgrade its result into "the manuscript complies".
+
 Beyond the skills, always ask:
 
 - Can this be re-run? Are inputs, versions and seeds pinned, or does the result
