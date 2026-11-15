@@ -1,0 +1,448 @@
+#!/usr/bin/env python3
+"""Tests for the medical-figure generator (runtime/skills/core/med-figures).
+
+Run: python scripts/dev/test_med_figures.py
+
+Stdlib unittest. The statistics are stdlib, so they run everywhere; rendering
+tests skip themselves when matplotlib is absent (gates CI installs nothing).
+The reference numbers for the forest plot and the log-rank test were computed
+independently with scipy and are pinned here with that provenance.
+"""
+from __future__ import annotations
+
+import contextlib
+import importlib.util
+import io
+import json
+import math
+import os
+import sys
+import tempfile
+import unittest
+from pathlib import Path
+from unittest import mock
+
+sys.dont_write_bytecode = True  # never leave __pycache__ in the shipped skill dir
+
+_ROOT = Path(__file__).resolve().parents[2]
+_MOD = _ROOT / "runtime/skills/core/med-figures/med_figures.py"
+_spec = importlib.util.spec_from_file_location("med_figures", _MOD)
+assert _spec and _spec.loader
+med = importlib.util.module_from_spec(_spec)
+sys.modules["med_figures"] = med
+_spec.loader.exec_module(med)
+
+
+def _mpl_available() -> bool:
+    try:
+        import matplotlib  # noqa: F401
+        return True
+    except ImportError:
+        return False
+
+
+HAVE_MPL = _mpl_available()
+
+
+def write_csv(directory: str, name: str, body: str) -> str:
+    path = os.path.join(directory, name)
+    with open(path, "w", encoding="utf-8-sig") as fh:
+        fh.write(body)
+    return path
+
+
+def run_main(argv: list[str]) -> tuple[int, str, str]:
+    out, err = io.StringIO(), io.StringIO()
+    with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+        code = med.main(argv)
+    return code, out.getvalue(), err.getvalue()
+
+
+def review_of(stdout: str) -> dict:
+    return json.loads(stdout.split("```review")[1].split("```")[0])
+
+
+def png_size(path: str) -> tuple[int, int]:
+    with open(path, "rb") as fh:
+        head = fh.read(24)
+    if head[:8] != b"\x89PNG\r\n\x1a\n":
+        raise AssertionError(f"{path} is not a PNG")
+    return (int.from_bytes(head[16:20], "big"),
+            int.from_bytes(head[20:24], "big"))
+
+
+class Intervals(unittest.TestCase):
+    def test_chi2_survival_matches_the_textbook_cutoffs(self):
+        # 3.841459 / 5.991465 are the 95% points of chi-square with 1 / 2 df.
+        self.assertAlmostEqual(med.chi2_sf(3.841458820694124, 1), 0.05, places=4)
+        self.assertAlmostEqual(med.chi2_sf(5.991464547107979, 2), 0.05, places=4)
+        self.assertEqual(med.chi2_sf(0.0, 3), 1.0)
+        with self.assertRaises(med.FigureError):
+            med.chi2_sf(1.0, 0)
+
+    def test_matrix_inverse(self):
+        inv = med._invert([[2.0, 1.0], [1.0, 2.0]])
+        self.assertAlmostEqual(inv[0][0], 2 / 3)
+        self.assertAlmostEqual(inv[0][1], -1 / 3)
+        self.assertAlmostEqual(inv[1][0], -1 / 3)
+        self.assertAlmostEqual(inv[1][1], 2 / 3)
+        with self.assertRaises(med.FigureError):
+            med._invert([[1.0, 2.0], [2.0, 4.0]])
+
+    def test_wilson_matches_diag_stats(self):
+        # Two skills ship the same interval; this fails the day one drifts.
+        diag_path = _ROOT / "runtime/skills/core/medical-stats/diag_stats.py"
+        spec = importlib.util.spec_from_file_location("diag_stats_for_crosscheck", diag_path)
+        assert spec and spec.loader
+        diag = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(diag)
+        for k, n in ((0, 5), (4, 5), (79, 83), (1, 1)):
+            self.assertEqual(med.wilson(k, n), diag.wilson(k, n))
+
+
+class RocMath(unittest.TestCase):
+    def test_auc_is_the_mann_whitney_statistic(self):
+        # Positives 3, 4 against negatives 1, 2: every pair is a win.
+        self.assertEqual(med.auc([3.0, 4.0, 1.0, 2.0], [1, 1, 0, 0]), 1.0)
+        self.assertEqual(med.auc([1.0, 2.0, 3.0, 4.0], [1, 1, 0, 0]), 0.0)
+        # Positives 2, 4; negatives 2, 3: the 2-vs-2 pair is a tie (0.5),
+        # 4 beats both -> (0.5 + 1 + 1) / 4.
+        self.assertAlmostEqual(
+            med.auc([2.0, 4.0, 2.0, 3.0], [1, 1, 0, 0]), 0.625
+        )
+
+    def test_one_class_is_an_error(self):
+        with self.assertRaises(med.FigureError):
+            med.auc([1.0, 2.0], [1, 1])
+
+    def test_points_run_from_origin_to_the_top_right_corner(self):
+        points = med.roc_points([1.0, 2.0, 3.0, 4.0], [0, 0, 1, 1])
+        self.assertEqual((points[0]["fpr"], points[0]["tpr"]), (0.0, 0.0))
+        self.assertEqual((points[-1]["fpr"], points[-1]["tpr"]), (1.0, 1.0))
+        for earlier, later in zip(points, points[1:]):
+            self.assertLessEqual(earlier["fpr"], later["fpr"])
+            self.assertLessEqual(earlier["tpr"], later["tpr"])
+
+    def test_analysis_interval_contains_the_estimate_and_is_repeatable(self):
+        # Overlapping distributions, so the interval is not degenerate at 1.0.
+        scores = ([round(0.02 * i, 2) for i in range(1, 21)] +
+                  [round(0.02 * i + 0.2, 2) for i in range(1, 21)])
+        labels = [0] * 20 + [1] * 20
+        first = med.roc_analysis(scores, labels, boot=300, seed=7)
+        second = med.roc_analysis(scores, labels, boot=300, seed=7)
+        self.assertEqual(first["auc_ci"], second["auc_ci"])
+        low, high = first["auc_ci"]
+        self.assertLess(low, first["auc"])
+        self.assertGreater(high, first["auc"])
+        self.assertGreater(high - low, 0.0)
+
+    def test_youden_point_and_a_given_cutoff(self):
+        scores = [1.0, 2.0, 3.0, 4.0]
+        labels = [0, 0, 1, 1]
+        analysis = med.roc_analysis(scores, labels, boot=200)
+        self.assertEqual(analysis["operating_source"], "youden")
+        given = med.roc_analysis(scores, labels, cutoff=2.5, boot=200)
+        self.assertEqual(given["operating_source"], "given")
+        self.assertAlmostEqual(given["operating"]["tpr"], 1.0)
+        self.assertAlmostEqual(given["operating"]["fpr"], 0.0)
+        self.assertLessEqual(given["operating"]["sensitivity_ci"][0], 1.0)
+        self.assertGreaterEqual(given["operating"]["specificity_ci"][1], 0.0)
+
+    def test_cutoff_outside_the_data_is_flagged(self):
+        analysis = med.roc_analysis([1.0, 2.0, 3.0, 4.0], [0, 0, 1, 1],
+                                    cutoff=10.0, boot=200)
+        self.assertTrue(any("outside the observed score range" in w
+                            for w in analysis["warnings"]))
+
+
+class ForestMath(unittest.TestCase):
+    # Reference values computed with scipy.stats.chi2 on 2026-11-15 from the
+    # same three log-scale inputs; the test pins the formulas, not a rerun.
+    ROWS = [("A", 1.50, 1.20, 1.875),
+            ("B", 2.00, 1.50, 2.667),
+            ("C", 0.80, 0.60, 1.067)]
+
+    def studies(self):
+        return [med.Study(name, effect, low, high, 0.0, 0.0)
+                for name, effect, low, high in self.ROWS]
+
+    def test_fixed_and_random_pooling(self):
+        analysis = med.forest_analysis(self.studies(), log_scale=True)
+        self.assertAlmostEqual(analysis["fixed"]["effect"], 1.3668, places=3)
+        self.assertAlmostEqual(analysis["fixed"]["ci"][0], 1.1760, places=3)
+        self.assertAlmostEqual(analysis["fixed"]["ci"][1], 1.5886, places=3)
+        self.assertAlmostEqual(analysis["random"]["effect"], 1.3412, places=3)
+        self.assertAlmostEqual(analysis["random"]["ci"][0], 0.8198, places=3)
+        self.assertAlmostEqual(analysis["random"]["ci"][1], 2.1942, places=3)
+        self.assertAlmostEqual(analysis["q"], 20.6922, places=3)
+        self.assertAlmostEqual(analysis["p_heterogeneity"], 3.2117e-05, places=6)
+        self.assertAlmostEqual(analysis["i2"], 0.9033, places=3)
+        self.assertAlmostEqual(analysis["tau2"], 0.1706, places=3)
+
+    def test_weights_are_fractions_that_sum_to_one(self):
+        analysis = med.forest_analysis(self.studies(), log_scale=True)
+        self.assertAlmostEqual(sum(s.weight_fixed for s in analysis["studies"]), 1.0)
+        self.assertAlmostEqual(sum(s.weight_random for s in analysis["studies"]), 1.0)
+        # The tightest study (A) carries the most weight in both models.
+        self.assertEqual(max(analysis["studies"], key=lambda s: s.weight_fixed).name, "A")
+        self.assertEqual(max(analysis["studies"], key=lambda s: s.weight_random).name, "A")
+
+    def test_mean_difference_uses_the_identity_scale(self):
+        # Symmetric CIs, so both studies carry the same weight and the pooled
+        # mean difference is the midpoint (1.5).
+        rows = [med.Study("A", 1.0, 0.5, 1.5, 0.0, 0.0),
+                med.Study("B", 2.0, 1.5, 2.5, 0.0, 0.0)]
+        analysis = med.forest_analysis(rows, log_scale=False, model="fixed")
+        self.assertAlmostEqual(analysis["fixed"]["effect"], 1.5, places=6)
+        self.assertAlmostEqual(analysis["fixed"]["ci"][0], 1.1464, places=3)
+        self.assertAlmostEqual(analysis["fixed"]["ci"][1], 1.8536, places=3)
+        self.assertAlmostEqual(analysis["i2"], 0.8698, places=3)
+
+    def test_bad_intervals_and_ratio_values_are_refused(self):
+        with self.assertRaises(med.FigureError):
+            med.forest_analysis([med.Study("A", 1.0, 1.2, 1.1, 0.0, 0.0)], True)
+        with self.assertRaises(med.FigureError):
+            med.forest_analysis([med.Study("A", 3.0, 1.0, 2.0, 0.0, 0.0)], True)
+        with self.assertRaises(med.FigureError):
+            med.forest_analysis([med.Study("A", 0.0, 0.0, 1.0, 0.0, 0.0)], True)
+
+    def test_one_study_is_flagged_as_not_a_meta_analysis(self):
+        analysis = med.forest_analysis([med.Study("A", 1.5, 1.2, 1.8, 0.0, 0.0)], True)
+        self.assertTrue(any("one study" in w for w in analysis["warnings"]))
+
+
+class KaplanMeierMath(unittest.TestCase):
+    A = [(1, 1), (2, 1), (3, 0), (4, 1), (5, 0)]
+    B = [(1, 0), (2, 1), (3, 0), (4, 1), (5, 0)]
+
+    def test_survival_steps_and_censoring(self):
+        curve = med.km_curve(self.A)
+        by_time = {p["time"]: p["survival"] for p in curve}
+        self.assertAlmostEqual(by_time[1], 0.8)
+        self.assertAlmostEqual(by_time[2], 0.6)
+        self.assertAlmostEqual(by_time[4], 0.3)
+        self.assertNotIn(3, by_time)  # a censoring time does not step the curve
+
+    def test_median_and_risk_table(self):
+        analysis = med.km_analysis({"A": self.A, "B": self.B}, [0, 2, 4])
+        self.assertEqual(analysis["medians"]["A"][0], 4)
+        self.assertEqual(analysis["medians"]["B"][0], 4)
+        self.assertEqual(analysis["risk"]["A"], [5, 4, 2])
+        self.assertEqual(analysis["risk"]["B"], [5, 4, 2])
+
+    def test_log_rank_matches_the_reference_computation(self):
+        result = med.logrank({"A": self.A, "B": self.B})
+        self.assertAlmostEqual(result["chi2"], 0.2470588, places=6)
+        self.assertEqual(result["df"], 1)
+        self.assertAlmostEqual(result["p"], 0.6191537, places=6)
+
+    def test_no_events_is_reported_not_divided_by_zero(self):
+        result = med.logrank({"A": [(1, 0)], "B": [(2, 0)]})
+        self.assertIsNone(result["p"])
+        analysis = med.km_analysis({"A": [(1, 0)], "B": [(2, 0)]}, [0])
+        self.assertTrue(any("no events" in w for w in analysis["warnings"]))
+
+    def test_median_not_reached(self):
+        curve = med.km_curve([(1, 0), (2, 0), (3, 0)])
+        self.assertIsNone(med.km_median(curve)[0])
+
+    def test_one_group_is_an_error(self):
+        with self.assertRaises(med.FigureError):
+            med.logrank({"A": self.A})
+
+
+class BlandAltmanMath(unittest.TestCase):
+    def test_bias_and_limits_of_agreement(self):
+        result = med.bland_altman_analysis([1.0, 2.0, 3.0], [1.1, 1.9, 3.2])
+        self.assertAlmostEqual(result["bias"], -0.0666667, places=6)
+        self.assertAlmostEqual(result["sd"], 0.1527525, places=6)
+        self.assertAlmostEqual(result["loa"][0], -0.3661, places=3)
+        self.assertAlmostEqual(result["loa"][1], 0.2328, places=3)
+
+    def test_zero_spread_and_small_n_are_flagged(self):
+        result = med.bland_altman_analysis([1.0, 2.0, 3.0], [2.0, 3.0, 4.0])
+        self.assertEqual(result["sd"], 0.0)
+        self.assertTrue(any("collapse onto the bias" in w for w in result["warnings"]))
+        self.assertTrue(any("below 30" in w for w in result["warnings"]))
+
+    def test_unpaired_lengths_are_refused(self):
+        with self.assertRaises(med.FigureError):
+            med.bland_altman_analysis([1.0, 2.0, 3.0], [1.0, 2.0])
+
+
+class CliContract(unittest.TestCase):
+    def setUp(self):
+        self.dir = tempfile.mkdtemp()
+
+    def test_missing_file_is_an_error_not_a_traceback(self):
+        code, _, err = run_main(["roc", os.path.join(self.dir, "nope.csv")])
+        self.assertEqual(code, 2)
+        self.assertIn("no such file", err)
+
+    def test_missing_column_lists_the_ones_found(self):
+        path = write_csv(self.dir, "s.csv", "score,outcome\n1,0\n")
+        code, _, err = run_main(["roc", path, "--label", "label"])
+        self.assertEqual(code, 2)
+        self.assertIn("missing column", err)
+        self.assertIn("columns found", err)
+
+    def test_non_numeric_value_names_the_line(self):
+        path = write_csv(self.dir, "s.csv", "score,label\n1,0\nabc,1\n")
+        code, _, err = run_main(["roc", path, "--out", os.path.join(self.dir, "x.png")])
+        self.assertEqual(code, 2)
+        self.assertIn("line 3", err)
+
+    def test_empty_table_is_refused(self):
+        path = write_csv(self.dir, "s.csv", "score,label\n")
+        code, _, err = run_main(["roc", path])
+        self.assertEqual(code, 2)
+        self.assertIn("no data rows", err)
+
+    def test_no_subcommand_returns_two(self):
+        self.assertEqual(run_main([])[0], 2)
+
+    def test_unknown_measure_returns_two(self):
+        path = write_csv(self.dir, "f.csv", "study,effect,ci_low,ci_high\nA,1,0.5,2\n")
+        code, _, _ = run_main(["forest", path, "--measure", "hrr"])
+        self.assertEqual(code, 2)
+
+    def test_default_output_sits_beside_the_input(self):
+        self.assertEqual(med._default_out(r"C:\d\scores.csv", "roc"),
+                         Path(r"C:\d\scores_roc.png"))
+
+    def test_bom_csv_parses(self):
+        path = write_csv(self.dir, "s.csv", "score,label\n1,0\n2,1\n")
+        code, _, _ = run_main(["roc", path, "--boot", "100",
+                               "--out", os.path.join(self.dir, "x.png")])
+        self.assertEqual(code, 0 if HAVE_MPL else 3)
+
+    @unittest.skipUnless(HAVE_MPL, "matplotlib not installed")
+    def test_review_contract_and_sha256(self):
+        path = write_csv(self.dir, "s.csv", "score,label\n1,0\n2,1\n3,1\n4,0\n")
+        code, out, _ = run_main(["roc", path, "--boot", "100",
+                                 "--out", os.path.join(self.dir, "roc.png")])
+        self.assertEqual(code, 0)
+        payload = review_of(out)
+        self.assertEqual(payload["gate"], "med-figures/roc")
+        self.assertEqual(len(payload["input"]["sha256"]), 64)
+        self.assertEqual(payload["input"]["rows"], 4)
+        self.assertTrue(payload["rendered"])
+        self.assertEqual(payload["style"], "openscience")
+        self.assertTrue(os.path.isfile(payload["outputs"][0]["path"]))
+
+    @unittest.skipUnless(HAVE_MPL, "matplotlib not installed")
+    def test_out_parent_directory_is_created(self):
+        path = write_csv(self.dir, "s.csv", "score,label\n1,0\n2,1\n3,1\n")
+        out = os.path.join(self.dir, "nested", "fig", "roc.png")
+        code, _, _ = run_main(["roc", path, "--boot", "100", "--out", out])
+        self.assertEqual(code, 0)
+        self.assertTrue(os.path.isfile(out))
+
+    @unittest.skipUnless(HAVE_MPL, "matplotlib not installed")
+    def test_vector_output_is_a_real_pdf(self):
+        path = write_csv(self.dir, "s.csv", "score,label\n1,0\n2,1\n3,1\n")
+        out = os.path.join(self.dir, "roc.png")
+        code, _, _ = run_main(["roc", path, "--boot", "100", "--out", out, "--vector"])
+        self.assertEqual(code, 0)
+        pdf = os.path.join(self.dir, "roc.pdf")
+        with open(pdf, "rb") as fh:
+            self.assertEqual(fh.read(4), b"%PDF")
+
+    def test_out_cannot_overwrite_the_input(self):
+        path = write_csv(self.dir, "s.csv", "score,label\n1,0\n2,1\n3,1\n")
+        code, _, err = run_main(["roc", path, "--out", path])
+        self.assertEqual(code, 2)
+        self.assertIn("overwrite the input", err)
+
+    def test_non_positive_width_and_nan_cutoff_are_refused(self):
+        path = write_csv(self.dir, "s.csv", "score,label\n1,0\n2,1\n3,1\n")
+        self.assertEqual(run_main(["roc", path, "--width-mm", "0"])[0], 2)
+        code, _, err = run_main(["roc", path, "--cutoff", "nan",
+                                 "--out", os.path.join(self.dir, "x.png")])
+        self.assertEqual(code, 2)
+        self.assertIn("finite", err)
+
+    def test_the_printed_output_survives_a_gbk_console(self):
+        path = write_csv(self.dir, "s.csv", "score,label\n1,0\n2,1\n3,1\n")
+        code, out, err = run_main(["roc", path, "--boot", "100",
+                                   "--out", os.path.join(self.dir, "roc.png")])
+        (out + err).encode("gbk")  # UnicodeEncodeError for anything cp936 lacks
+
+    @unittest.skipUnless(HAVE_MPL, "matplotlib not installed")
+    def test_missing_matplotlib_still_reports_the_numbers(self):
+        path = write_csv(self.dir, "s.csv", "score,label\n1,0\n2,1\n3,1\n")
+        out = os.path.join(self.dir, "roc.png")
+        with mock.patch.object(med, "_import_pyplot", return_value=None):
+            code, stdout, _ = run_main(["roc", path, "--boot", "100", "--out", out])
+        self.assertEqual(code, 3)
+        payload = review_of(stdout)
+        self.assertFalse(payload["rendered"])
+        self.assertTrue(any("matplotlib is not installed" in w
+                            for w in payload["warnings"]))
+        self.assertFalse(os.path.exists(out))
+
+
+@unittest.skipUnless(HAVE_MPL, "matplotlib not installed")
+class Rendering(unittest.TestCase):
+    def setUp(self):
+        self.dir = tempfile.mkdtemp()
+
+    def roc_fixture(self):
+        return write_csv(self.dir, "roc.csv",
+                         "score,label\n" + "\n".join(
+                             f"{0.05 + 0.01 * i:.2f},{'1' if i > 10 else '0'}"
+                             for i in range(20)))
+
+    def test_roc_png_has_final_size_pixels(self):
+        out = os.path.join(self.dir, "roc.png")
+        code, out_text, err = run_main(["roc", self.roc_fixture(), "--boot", "100",
+                                        "--out", out])
+        self.assertEqual(code, 0, err)
+        width, height = png_size(out)
+        self.assertGreater(width, 900)   # 89 mm at 300 dpi is ~1051 px
+        self.assertGreater(height, 900)
+        self.assertGreater(os.path.getsize(out), 20000)
+
+    def test_forest_png_is_a_double_column_figure(self):
+        path = write_csv(self.dir, "forest.csv",
+                         "study,effect,ci_low,ci_high\n"
+                         "A,1.50,1.20,1.875\nB,2.00,1.50,2.667\n"
+                         "C,0.80,0.60,1.067\n")
+        out = os.path.join(self.dir, "forest.png")
+        code, out_text, err = run_main(["forest", path, "--out", out])
+        self.assertEqual(code, 0, err)
+        width, _ = png_size(out)
+        self.assertGreater(width, 1800)  # 183 mm at 300 dpi is ~2161 px
+        payload = review_of(out_text)
+        self.assertAlmostEqual(payload["estimates"]["heterogeneity"]["q"],
+                               20.6922, places=3)
+
+    def test_km_png_and_risk_table(self):
+        path = write_csv(self.dir, "km.csv",
+                         "group,time,event\n" + "\n".join(
+                             f"{g},{t},{e}"
+                             for g, rows in (("A", [(1, 1), (2, 1), (3, 0), (4, 1), (5, 0)]),
+                                             ("B", [(1, 0), (2, 1), (3, 0), (4, 1), (5, 0)]))
+                             for t, e in rows))
+        out = os.path.join(self.dir, "km.png")
+        code, out_text, err = run_main(["km", path, "--times", "0,2,4",
+                                        "--time-unit", "months", "--out", out])
+        self.assertEqual(code, 0, err)
+        self.assertGreater(os.path.getsize(out), 15000)
+        payload = review_of(out_text)
+        self.assertEqual(payload["estimates"]["risk_times"], [0.0, 2.0, 4.0])
+
+    def test_bland_altman_png(self):
+        path = write_csv(self.dir, "ba.csv",
+                         "a,b\n" + "\n".join(
+                             f"{10 + i * 0.5},{10.1 + i * 0.5}" for i in range(12)))
+        out = os.path.join(self.dir, "ba.png")
+        code, out_text, err = run_main(["bland-altman", path, "--a", "a", "--b", "b",
+                                        "--out", out])
+        self.assertEqual(code, 0, err)
+        self.assertGreater(os.path.getsize(out), 10000)
+        self.assertAlmostEqual(review_of(out_text)["estimates"]["bias"], -0.1, places=6)
+
+
+if __name__ == "__main__":
+    unittest.main(verbosity=2)

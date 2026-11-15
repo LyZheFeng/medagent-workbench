@@ -24,10 +24,10 @@
 | 能力 | 说明 | 实现层次 |
 |---|---|---|
 | 🏥 医学连接器 | PubMed / 文献检索、biomcp(临床试验 / ClinVar)、GEO、openFDA,一键装入隔离环境 | 现成 MCP 服务器,接入即用 |
-| 🧠 医学技能 | 临床证据(PICO / CEBM / GRADE)、医学统计(诊断试验 / 样本量 / 生存分析)、医学图表(ROC / 森林图 / KM)、CARE 病例报告、文献综述、引用核查、论文→报告 | **提示词级**;`diag_stats.py` 为确定性脚本 |
+| 🧠 医学技能 | 临床证据(PICO / CEBM / GRADE)、医学统计(诊断试验 / 样本量 / 生存分析)、医学图表(ROC / 森林图 / KM / Bland–Altman)、CARE 病例报告、文献综述、引用核查、论文→报告 | 提示词级;`diag_stats.py`、`med_figures.py` 为确定性脚本 |
 | 🪪 去标识 | 病例报告 / 临床文本:姓名、住院号、身份证、电话、邮箱、地址、机构换成稳定令牌,日期整体偏移,≥90 岁归组 | `deidentify.py` 确定性脚本,输出 review 卡片;图像与 DICOM 不在范围内 |
 | 📋 报告规范 | 按 STROBE / CONSORT / CARE / STARD / PRISMA 逐条检查稿件**是否提到**必需项(伦理、知情同意、注册号、置信区间、缺失数据、去标识、流程、不良事件);每条结论标出官方条目号与清单版本,可再要求条目落在 Methods/Results 段 | `check_report.py` 确定性 gate,输出 review 卡片;存在性检查,不是合规结论 |
-| 📊 诊断统计 | 灵敏度 / 特异度 / PPV / NPV + Wilson 95% CI、ROC / AUC(bootstrap CI)、Youden 最佳截断 | `analyze.py`、`diag_stats.py` 已实跑验证 |
+| 📊 诊断统计 | 灵敏度 / 特异度 / PPV / NPV + Wilson 95% CI、ROC / AUC(bootstrap CI)、Youden 最佳截断 | `analyze.py`、`diag_stats.py`、`med_figures.py` 已实跑验证 |
 | 🔬 示例项目 | 200 例**模拟**诊断试验数据,跑通「数据 → 统计 → ROC → 报告」 | 可一键安装并实跑 |
 | 🔒 本地优先 | 工作区、会话、溯源日志留在本机;模型可接任意 OpenAI 兼容接口 | —— |
 | 🌐 中文优先 | 简体中文为第一语言,另附 6 种语言 | —— |
@@ -58,7 +58,7 @@ pnpm --filter @ai4s/desktop tauri dev
 
 - 品牌、图标、主题医学化(青绿色系);简体中文为第一语言
 - 连接器聚焦医学 / 生物(移除材料、经济、气象、水文等 5 个),新增 openFDA、PubMed
-- 新增 8 个技能(5 医学 + 3 文献),其中 2 个带确定性脚本(诊断统计、报告规范检查);
+- 新增 8 个技能(5 医学 + 3 文献),其中 3 个带确定性脚本(诊断统计、报告规范检查、医学图表);
   审稿智能体增加医学路由
 - 4 个一键工作流改为医学场景,内置示例换成模拟诊断试验数据
 - **App 身份独立**:bundle identifier 为 `com.medagent.workbench`,版本线从 0.8.0 起,
@@ -79,7 +79,7 @@ pnpm --filter @ai4s/desktop tauri dev
 
 - 报告规范检查只判断"文本是否提到"某项,不判断写法是否合规;也不要把它当成投稿前的合规结论
 - 去标识脚本只处理文本:图像、DICOM 元数据,以及没有标签可循的姓名/罕见职业仍需人工核对;它是第一遍,不是匿名保证
-- 医学图表(ROC / 森林图 / KM)由模型按技能说明生成,尚无脚本化图表生成器
+- 医学图表中的流程图(STROBE / PRISMA / CONSORT)与 2×2 表图仍按技能说明手工绘制,尚无脚本;ROC / 森林图 / KM / Bland–Altman 已由 `med_figures.py` 生成
 - 引用核查(`citation-reviewer`)目前是流程说明,没有确定性脚本
 - macOS / Linux 安装包在本分支尚未验证;已发布的只有 Windows 版
 - 界面文案 7 语言同步维护,但除简体中文与英文外,其余语言的医学措辞未经母语者校对

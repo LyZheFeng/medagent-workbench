@@ -1,10 +1,12 @@
 name: gates CI
 
 # The deterministic gates that ship as skill scripts — domain-check,
-# stats-integrity, large-file, pdf-extract, record-run and the medical pair
-# (reporting-guidelines, medical-stats) — plus every other stdlib test under
-# scripts/dev/. They are Python, stdlib-only, and take about a second; nothing
-# else in the CI matrix builds or runs them, so a gate could rot silently.
+# stats-integrity, large-file, pdf-extract, record-run and the medical trio
+# (reporting-guidelines, medical-stats, med-figures) — plus every other stdlib
+# test under scripts/dev/. They are Python, stdlib-only, and take about a
+# second; the figure renderer's matplotlib cases skip themselves on the CI
+# runner rather than fail. Nothing else in the CI matrix builds or runs them,
+# so a gate could rot silently.
 on:
   push:
     # This repository is developed by pushing to master, not by merging PRs, so
