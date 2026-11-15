@@ -26,7 +26,7 @@
 | 🏥 医学连接器 | PubMed / 文献检索、biomcp(临床试验 / ClinVar)、GEO、openFDA,一键装入隔离环境 | 现成 MCP 服务器,接入即用 |
 | 🧠 医学技能 | 临床证据(PICO / CEBM / GRADE)、医学统计(诊断试验 / 样本量 / 生存分析)、医学图表(ROC / 森林图 / KM)、CARE 病例报告、文献综述、引用核查、论文→报告 | **提示词级**;`diag_stats.py` 为确定性脚本 |
 | 🪪 去标识 | 病例报告 / 临床文本:姓名、住院号、身份证、电话、邮箱、地址、机构换成稳定令牌,日期整体偏移,≥90 岁归组 | `deidentify.py` 确定性脚本,输出 review 卡片;图像与 DICOM 不在范围内 |
-| 📋 报告规范 | 按 STROBE / CONSORT / CARE / STARD / PRISMA 逐条检查稿件**是否提到**必需项(伦理、知情同意、注册号、置信区间、缺失数据、去标识、流程、不良事件) | `check_report.py` 确定性 gate,输出 review 卡片 |
+| 📋 报告规范 | 按 STROBE / CONSORT / CARE / STARD / PRISMA 逐条检查稿件**是否提到**必需项(伦理、知情同意、注册号、置信区间、缺失数据、去标识、流程、不良事件);每条结论标出官方条目号与清单版本,可再要求条目落在 Methods/Results 段 | `check_report.py` 确定性 gate,输出 review 卡片;存在性检查,不是合规结论 |
 | 📊 诊断统计 | 灵敏度 / 特异度 / PPV / NPV + Wilson 95% CI、ROC / AUC(bootstrap CI)、Youden 最佳截断 | `analyze.py`、`diag_stats.py` 已实跑验证 |
 | 🔬 示例项目 | 200 例**模拟**诊断试验数据,跑通「数据 → 统计 → ROC → 报告」 | 可一键安装并实跑 |
 | 🔒 本地优先 | 工作区、会话、溯源日志留在本机;模型可接任意 OpenAI 兼容接口 | —— |
