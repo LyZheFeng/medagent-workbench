@@ -32,6 +32,11 @@ python "$XDG_CONFIG_HOME/opencode/skills/reporting-guidelines/check_report.py" -
 python "$XDG_CONFIG_HOME/opencode/skills/reporting-guidelines/check_report.py" --sections manuscript.md
 ```
 
+It prints exactly one ` ```review ` fenced JSON block, the same contract the
+reviewer agent uses: `level` (`error` for a required item, `warn` for a
+recommended one), `tag` (`reporting · <design> · <item>`), `title`, `evidence`,
+plus a `note` that says what was checked and what it does not prove.
+
 ## Which checklist, which number
 
 Every finding names the official item behind it, with the version, because the
@@ -54,11 +59,6 @@ Three consequences worth knowing:
   together, so a renumbering cannot pass unnoticed. If a journal supplies its own
   checklist (a CONSORT extension, a Chinese translation), cite that one in the
   reply as well.
-
-It prints exactly one ` ```review ` fenced JSON block, the same contract the
-reviewer agent uses: `level` (`error` for a required item, `warn` for a
-recommended one), `tag` (`reporting · <design> · <item>`), `title`, `evidence`,
-plus a `note` that says what was checked and what it does not prove.
 
 ## What it checks
 
