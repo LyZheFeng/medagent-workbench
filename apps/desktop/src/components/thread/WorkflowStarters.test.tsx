@@ -1,7 +1,8 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { WORKFLOW_STARTERS, WorkflowStarters } from "./WorkflowStarters";
+import i18n from "@/i18n";
+import { WORKFLOW_STARTERS, WorkflowStarters, promptForLocale } from "./WorkflowStarters";
 
 // Plain closures instead of vi.fn: tinyspy's result tracking derives an extra
 // promise from a rejecting spy, which vitest then reports as unhandled.
@@ -61,5 +62,31 @@ describe("WorkflowStarters", () => {
     await userEvent.click(screen.getByText("Explore an example: diagnostic-accuracy study"));
     await waitFor(() => expect(installCalls).toHaveLength(1));
     expect(onPick).not.toHaveBeenCalled();
+  });
+});
+
+describe("workflow prompt language", () => {
+  // The instruction is what the agent reads, so a Chinese UI must not send an
+  // English request: that is why every answer came back in English.
+  it("picks the Chinese instruction for a Chinese UI and English otherwise", () => {
+    const demo = WORKFLOW_STARTERS.find((s) => s.id === "demo")!;
+    expect(promptForLocale(demo, "zh-Hans")).toContain("端到端");
+    expect(promptForLocale(demo, "zh-CN")).toContain("端到端");
+    expect(promptForLocale(demo, "en")).toContain("end to end");
+    expect(promptForLocale(demo, "ja")).toContain("end to end");
+  });
+
+  it("sends the Chinese prompt when the interface is Chinese", async () => {
+    const onPick = vi.fn();
+    await i18n.changeLanguage("zh-Hans");
+    try {
+      render(<WorkflowStarters onPick={onPick} />);
+      await userEvent.click(screen.getByText("运行一次诊断试验演示分析"));
+      await waitFor(() => expect(onPick).toHaveBeenCalledTimes(1));
+      expect(onPick.mock.calls[0][0]).toContain("demo_analysis/figure1.png");
+      expect(onPick.mock.calls[0][0]).toContain("端到端");
+    } finally {
+      await i18n.changeLanguage("en");
+    }
   });
 });

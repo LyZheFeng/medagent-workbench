@@ -7,11 +7,20 @@ import { cn } from "@/lib/cn";
 export interface WorkflowStarter {
   id: string;
   icon: React.ReactNode;
-  /** Sent to the agent as-is — content, not UI copy, so it is never translated.
-   *  The card's display title/description live in `session:starters.<id>.*`. */
-  prompt: string;
+  /** The instruction sent to the agent, authored per language. Chinese and
+   *  English are written by hand; a locale with no text of its own gets the
+   *  English one — a machine-translated research prompt (STROBE, Youden, PPV,
+   *  likelihood ratio) is worse than an honest English one, and the *display*
+   *  copy for every locale is translated separately below.
+   *  The card's title/description live in `session:starters.<id>.*`. */
+  prompts: { en: string; "zh-Hans": string };
   /** Side effect to run before sending the prompt (e.g. install example files). */
   prepare?: () => Promise<void>;
+}
+
+/** The prompt to send for a UI language (i18next's `i18n.language`). */
+export function promptForLocale(starter: WorkflowStarter, language: string): string {
+  return language.toLowerCase().startsWith("zh") ? starter.prompts["zh-Hans"] : starter.prompts.en;
 }
 
 /** One-click full-workflow prompts (P0-1): a single request that carries the
@@ -20,47 +29,76 @@ export const WORKFLOW_STARTERS: WorkflowStarter[] = [
   {
     id: "demo",
     icon: <FlaskConical size={17} strokeWidth={1.75} />,
-    prompt:
-      "Run a complete diagnostic-accuracy demo analysis end to end: simulate a small " +
-      "diagnostic-test dataset in Python (index test result vs gold standard, e.g. 200 patients " +
-      "with disease status), compute sensitivity, specificity, PPV, NPV and likelihood ratios " +
-      "with 95% confidence intervals, save one publication-quality figure (ROC curve) as " +
-      "demo_analysis/figure1.png, and write demo_analysis/report.md summarizing the findings " +
-      "following STARD-style reporting — every number in the report must come from the code you " +
-      "ran. Keep all files in the workspace.",
+    prompts: {
+      en:
+        "Run a complete diagnostic-accuracy demo analysis end to end: simulate a small " +
+        "diagnostic-test dataset in Python (index test result vs gold standard, e.g. 200 patients " +
+        "with disease status), compute sensitivity, specificity, PPV, NPV and likelihood ratios " +
+        "with 95% confidence intervals, save one publication-quality figure (ROC curve) as " +
+        "demo_analysis/figure1.png, and write demo_analysis/report.md summarizing the findings " +
+        "following STARD-style reporting — every number in the report must come from the code you " +
+        "ran. Keep all files in the workspace.",
+      "zh-Hans":
+        "端到端跑一个完整的诊断准确性演示分析:用 Python 模拟一个小型诊断试验数据集" +
+        "(指标检测结果 vs 金标准,例如 200 名有明确疾病状态的患者),计算灵敏度、特异度、" +
+        "PPV、NPV 与似然比(均含 95% 置信区间),画一张达到出版质量的图(ROC 曲线)保存为 " +
+        "demo_analysis/figure1.png,并按 STARD 规范撰写 demo_analysis/report.md 总结结论——" +
+        "报告里的每个数字都必须来自你实际运行的代码。所有文件都放在工作区内。",
+    },
   },
   {
     id: "analyze",
     icon: <LineChart size={17} strokeWidth={1.75} />,
-    prompt:
-      "Analyze the clinical data file I added to the workspace end to end: explore it (cohort " +
-      "characteristics, missing data), run the analysis in code (baseline table, outcome " +
-      "analysis, at least one figure saved as a PNG), and write report.md with the findings in " +
-      "STROBE-aligned structure — every number traced to the code that produced it. Ask me which " +
-      "file to use if there is more than one candidate.",
+    prompts: {
+      en:
+        "Analyze the clinical data file I added to the workspace end to end: explore it (cohort " +
+        "characteristics, missing data), run the analysis in code (baseline table, outcome " +
+        "analysis, at least one figure saved as a PNG), and write report.md with the findings in " +
+        "STROBE-aligned structure — every number traced to the code that produced it. Ask me which " +
+        "file to use if there is more than one candidate.",
+      "zh-Hans":
+        "分析我添加到工作区里的临床数据文件:先探索数据(队列特征、缺失情况),再用代码完成分析" +
+        "(基线表、结局分析、至少一张 PNG 图),按 STROBE 结构写 report.md,每个数字都要能追溯到" +
+        "产出它的代码。如果候选文件不止一个,先问我要用哪个。",
+    },
   },
   {
     id: "audit",
     icon: <FileSearch size={17} strokeWidth={1.75} />,
-    prompt:
-      "Use the traceability-review skill to audit the medical report or manuscript in my " +
-      "workspace: resolve every citation, flag statistics with no traceable source (sensitivity, " +
-      "p-values, hazard ratios, confidence intervals), and check figures against the code that " +
-      "generated them. Also check reporting-guideline compliance (STROBE for observational, " +
-      "CONSORT for trials, CARE for case reports). Ask me which document to audit if there is " +
-      "more than one candidate.",
+    prompts: {
+      en:
+        "Use the traceability-review skill to audit the medical report or manuscript in my " +
+        "workspace: resolve every citation, flag statistics with no traceable source (sensitivity, " +
+        "p-values, hazard ratios, confidence intervals), and check figures against the code that " +
+        "generated them. Then run the reporting-guidelines gate for the study design (STROBE for " +
+        "observational, CONSORT for trials, CARE for case reports) and report its findings as they " +
+        "are. Ask me which document to audit if there is more than one candidate.",
+      "zh-Hans":
+        "用 traceability-review 技能审查我工作区里的医学报告或稿件:逐条核实引用,标出没有可追溯" +
+        "来源的统计量(灵敏度、p 值、风险比、置信区间),并核对图表与生成它的代码是否一致。然后用 " +
+        "reporting-guidelines 技能按研究设计跑一次规范检查(观察性研究用 STROBE、试验用 CONSORT、" +
+        "病例报告用 CARE),如实报告它给出的结果。如果需要审查的文档不止一个,先问我是哪一个。",
+    },
   },
   {
     id: "example-clinical",
     icon: <Stethoscope size={17} strokeWidth={1.75} />,
-    prompt:
-      "Analyze the diagnostic-accuracy dataset at clinical-diagnostics/data/diagnostic_test.csv " +
-      "(simulated study: 200 patients, index test score vs gold-standard disease status — see " +
-      "clinical-diagnostics/README.md). Compute sensitivity, specificity, PPV, NPV and the " +
-      "likelihood ratios, all with 95% confidence intervals, across candidate cutoffs; choose " +
-      "an optimal cutoff with Youden's index, plot the ROC curve as " +
-      "clinical-diagnostics/roc_curve.png, and write clinical-diagnostics/report.md citing the " +
-      "dataset provenance — every number must come from the code you ran.",
+    prompts: {
+      en:
+        "Analyze the diagnostic-accuracy dataset at clinical-diagnostics/data/diagnostic_test.csv " +
+        "(simulated study: 200 patients, index test score vs gold-standard disease status — see " +
+        "clinical-diagnostics/README.md). Compute sensitivity, specificity, PPV, NPV and the " +
+        "likelihood ratios, all with 95% confidence intervals, across candidate cutoffs; choose " +
+        "an optimal cutoff with Youden's index, plot the ROC curve as " +
+        "clinical-diagnostics/roc_curve.png, and write clinical-diagnostics/report.md citing the " +
+        "dataset provenance — every number must come from the code you ran.",
+      "zh-Hans":
+        "分析 clinical-diagnostics/data/diagnostic_test.csv 这个诊断准确性数据集" +
+        "(模拟研究:200 名患者,指标检测得分 vs 金标准疾病状态——见 clinical-diagnostics/README.md)。" +
+        "计算候选截断下的灵敏度、特异度、PPV、NPV 和似然比,都带 95% 置信区间;用 Youden 指数选出" +
+        "最佳截断,把 ROC 曲线画到 clinical-diagnostics/roc_curve.png,并写 " +
+        "clinical-diagnostics/report.md,引用数据集来源——每个数字都必须来自你运行的代码。",
+    },
     prepare: async () => {
       if (isTauri) await installExample("clinical-diagnostics");
     },
@@ -81,7 +119,7 @@ export function WorkflowStarters({
    *  the invitation stays, and nothing makes the welcome scroll. */
   showCards?: boolean;
 }) {
-  const { t } = useTranslation(["session", "common"]);
+  const { t, i18n } = useTranslation(["session", "common"]);
   // Display copy per starter id — t()'s generated key type rejects a dynamic
   // `starters.${id}.title` template, so each card's copy is looked up by id
   // from this literal-keyed map instead.
@@ -127,7 +165,10 @@ export function WorkflowStarters({
                     );
                     return;
                   }
-                  onPick(s.prompt);
+                  // The instruction follows the UI language: a Chinese card must
+                  // not hand the agent an English request (that is how every
+                  // answer came back in English).
+                  onPick(promptForLocale(s, i18n.language));
                 })();
               }}
               className="group flex w-full items-center gap-3.5 border-t border-border px-4 py-3.5 text-left transition-colors first:border-t-0 hover:bg-surface-2"

@@ -9,6 +9,16 @@
 - Complete the current goal.
 - Improve through each work cycle by saving lessons into this file and memory.
 
+## Language and voice
+- Answer in the language the user writes in. This workbench is Chinese-first: when a
+  request carries no language of its own, answer in Simplified Chinese.
+- Keep code, identifiers, file paths, commands and citation titles exactly as they
+  are — translate around them, never inside them. Put the English original beside a
+  Chinese term on first use, e.g. 似然比 (likelihood ratio).
+- Lead with the conclusion or the number, then the evidence. No preamble, no
+  restating the question.
+- Separate what you verified from what you assume, and say which is which.
+
 ## Workspace
 - This repo is your entire workspace.
 - Code, data, drafts, and results may all live in this repo.

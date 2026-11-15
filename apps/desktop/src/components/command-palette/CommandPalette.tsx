@@ -15,7 +15,7 @@ import { useUiStore } from "@/lib/store";
 import { openDraftScreen, useRuntimeStore } from "@/lib/runtime";
 import { DEFAULT_PROJECT, useLayoutStore } from "@/lib/layout";
 import { useIsMobile } from "@/lib/useIsMobile";
-import { WORKFLOW_STARTERS } from "@/components/thread/WorkflowStarters";
+import { WORKFLOW_STARTERS, promptForLocale } from "@/components/thread/WorkflowStarters";
 
 interface Action {
   id: string;
@@ -24,11 +24,15 @@ interface Action {
   run: () => void;
 }
 
-/** Prompt for a starter workflow by id, so ⌘K and the empty-session cards stay in sync. */
-const starterPrompt = (id: string) => WORKFLOW_STARTERS.find((s) => s.id === id)?.prompt ?? "";
+/** Prompt for a starter workflow by id, so ⌘K and the empty-session cards stay in
+ *  sync. The instruction follows the UI language, exactly as the cards do. */
+const starterPrompt = (id: string, language: string) => {
+  const starter = WORKFLOW_STARTERS.find((s) => s.id === id);
+  return starter ? promptForLocale(starter, language) : "";
+};
 
 export function CommandPalette() {
-  const { t } = useTranslation("nav");
+  const { t, i18n } = useTranslation("nav");
   const open = useUiStore((s) => s.paletteOpen);
   const setOpen = useUiStore((s) => s.setPaletteOpen);
   const toggleTheme = useUiStore((s) => s.toggleTheme);
@@ -64,7 +68,7 @@ export function CommandPalette() {
     // A workflow's session lands in a dated folder, so its Screen is Default's.
     const leafId = newPaneAllowed ? layout.openInNewGroup(null, DEFAULT_PROJECT) : null;
     useRuntimeStore.getState().startDraft();
-    const id = await useRuntimeStore.getState().sendPrompt(starterPrompt(starterId));
+    const id = await useRuntimeStore.getState().sendPrompt(starterPrompt(starterId, i18n.language));
     if (id && leafId) layout.bindSession(leafId, id);
     if (id) navigate(`/live/${id}`);
   };
