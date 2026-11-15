@@ -48,8 +48,9 @@ pnpm --filter @ai4s/desktop dev
 pnpm --filter @ai4s/desktop tauri dev
 ```
 
-配置模型:设置 → 提供商 → 添加自定义 OpenAI 兼容接口(如 GLM / DeepSeek),
-填入 baseURL 与 API key 即可。
+配置模型:首次启动会有一个向导(供应商 → 密钥 → 默认模型 → 一条 30 秒测试消息),
+随时也可以在 设置 → 智能体 中添加自定义 OpenAI 兼容接口(如 GLM / DeepSeek),填入
+baseURL 与 API key 即可。
 
 ## 与上游的主要差异
 
@@ -66,6 +67,9 @@ pnpm --filter @ai4s/desktop tauri dev
   已有的明文 key 在首次启动时自动迁移
 - **合规声明在应用内**:首次启动一次性提示,`设置 → 关于` 常驻,导出的 Markdown
   页脚中英双写 —— 三处同一份文案
+- **首次启动向导**:选供应商 → 填密钥 → 选默认模型 → 跑一条 30 秒测试消息;密钥仍走
+  系统凭据库(配置文件只留 `{env:MEDAGENT_KEY_…}`),向导结束处直接引用
+  `设置 → 隐私` 的同一句话。已有供应商的旧安装不会看到向导
 - 移除无引用的 `xlsx` 直链依赖;`.gitattributes` 固定换行为 LF
 
 ## 尚未完成(不隐瞒)

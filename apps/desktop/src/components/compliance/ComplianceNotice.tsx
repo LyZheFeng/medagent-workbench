@@ -8,7 +8,12 @@ import { ComplianceText } from "./ComplianceText";
  *  posture. */
 export const COMPLIANCE_ACK_KEY = "ai4s.compliance.v1";
 
-function alreadyAcknowledged(): boolean {
+/**
+ * Whether this install already acknowledged the boundary. Shared with the
+ * first-run orchestration (`FirstRun`) so the setup wizard can wait until the
+ * statement is behind the user instead of stacking a second dialog on it.
+ */
+export function hasAcknowledgedCompliance(): boolean {
   try {
     return window.localStorage.getItem(COMPLIANCE_ACK_KEY) === "1";
   } catch {
@@ -18,12 +23,16 @@ function alreadyAcknowledged(): boolean {
   }
 }
 
+function alreadyAcknowledged(): boolean {
+  return hasAcknowledgedCompliance();
+}
+
 /**
  * First-run medical-boundary notice. Blocking on purpose: this is a research
  * tool whose output can look like clinical advice, and the one thing a user
  * must know before the first prompt is that it is not.
  */
-export function ComplianceNotice() {
+export function ComplianceNotice({ onAcknowledged }: { onAcknowledged?: () => void } = {}) {
   const { t } = useTranslation("settings");
   const [open, setOpen] = useState(() => !alreadyAcknowledged());
   if (!open) return null;
@@ -35,6 +44,7 @@ export function ComplianceNotice() {
       // Best-effort: the notice reappears next launch rather than failing.
     }
     setOpen(false);
+    onAcknowledged?.();
   };
 
   return (

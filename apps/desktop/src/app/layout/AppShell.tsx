@@ -12,7 +12,7 @@ import { StatusBar } from "@/components/status-bar/StatusBar";
 import { Toaster } from "@/components/ui/Toaster";
 import { SshSignInDialog } from "@/components/ui/SshSignInDialog";
 import { SettingsRequestDialog } from "@/components/ui/SettingsRequestDialog";
-import { ComplianceNotice } from "@/components/compliance/ComplianceNotice";
+import { FirstRun } from "@/components/onboarding/FirstRun";
 import { mockProject } from "@/lib/mock";
 import { adoptSourceFolder, startSessionScreen, useRuntimeStore } from "@/lib/runtime";
 import { useHoverTracking } from "@/lib/hoverTracking";
@@ -291,9 +291,9 @@ export function AppShell() {
           Settings card or the conversation the agent is working in. */}
       <SshSignInDialog />
       <SettingsRequestDialog />
-      {/* First launch only: the medical boundary, before the first prompt. The
-          same statement stays in Settings → About. */}
-      <ComplianceNotice />
+      {/* First launch only, in order: the medical boundary, then the setup
+          wizard (see FirstRun) — never two dialogs at once. */}
+      <FirstRun />
       <PaneDragGhost />
     </div>
   );
