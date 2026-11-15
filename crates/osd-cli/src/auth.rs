@@ -3,10 +3,13 @@
 // This is the ONE command that never goes through the gateway. An API key must
 // not cross the network (AGENTS.md), and the gateway enforces that by refusing
 // every config write and redacting every config read — so on a headless box the
-// key is set HERE, on the machine that will use it, and stays there. The other
-// way in is the environment: the sidecar inherits this process's environment, so
-// `ANTHROPIC_API_KEY=… osd server` works with nothing written to disk at all,
-// which is what a container or a systemd unit wants.
+// key is set HERE, on the machine that will use it, and stays there. The key
+// goes into the OS credential store (Windows Credential Manager, the macOS
+// Keychain, libsecret) and the config keeps only `{env:MEDAGENT_KEY_<PROVIDER>}`;
+// the runtime reads it back into the sidecar's environment at spawn time. The
+// other way in is the environment: the sidecar inherits this process's
+// environment, so `MEDAGENT_KEY_<PROVIDER>=… osd server` works with nothing
+// stored at all, which is what a container or a systemd unit wants.
 use osd_core::runtime;
 
 use crate::args::Args;
@@ -57,7 +60,14 @@ fn set(args: &Args) -> Result<(), String> {
         args.value("npm"),
         &models,
     )?;
-    println!("Saved the {provider} key for this machine.");
+    println!("Saved the {provider} key in the OS credential store for this machine.");
+    // The config holds `{env:MEDAGENT_KEY_<PROVIDER>}`, so the key only reaches
+    // the runtime through the sidecar's environment. Say where it went, so
+    // nobody goes looking for it in a file.
+    println!(
+        "opencode.json references the variable {}; the key itself is not written to disk.",
+        osd_core::secrets::env_var(&provider)
+    );
     // A base URL with no model list is the one combination that writes an entry
     // OpenCode may drop on the floor: an id it has no catalog entry for needs
     // `models` to load at all, and saying nothing here is how a headless box

@@ -28,5 +28,10 @@ portable-pty = "0.9"
 
 # System proxy on Windows is read through WinHTTP (manual proxy, bypass list
 # and PAC evaluation) rather than by parsing the registry — see system_proxy.rs.
+# Credential Manager holds provider API keys, never opencode.json (secrets.rs).
 [target.'cfg(windows)'.dependencies]
-windows-sys = { version = "0.60", features = ["Win32_Foundation", "Win32_Networking_WinHttp"] }
+windows-sys = { version = "0.60", features = [
+    "Win32_Foundation",
+    "Win32_Networking_WinHttp",
+    "Win32_Security_Credentials",
+] }

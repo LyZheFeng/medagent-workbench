@@ -256,6 +256,8 @@ pub fn run() {
             jupyter::setup_jupyter,
             jupyter::start_jupyter,
             runtime::configure_opencode,
+            runtime::store_provider_key,
+            runtime::forget_provider_key,
             runtime::get_approval_mode,
             runtime::set_approval_mode,
             runtime::read_memory,

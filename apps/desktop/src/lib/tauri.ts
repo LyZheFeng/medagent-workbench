@@ -1358,3 +1358,22 @@ export async function configureOpenCode(
     return { ok: false, reason: "error", message: e instanceof Error ? e.message : String(e) };
   }
 }
+
+/**
+ * Put a provider key in the OS credential store (Windows Credential Manager,
+ * macOS Keychain, libsecret) and return the environment variable the config
+ * must reference. The key itself must never be written into `opencode.json`:
+ * the runtime injects it into the sidecar's environment at startup.
+ */
+export async function storeProviderKey(provider: string, apiKey: string): Promise<string> {
+  if (!isTauri) throw new Error("storing a provider key needs the desktop app");
+  const { invoke } = await import("@tauri-apps/api/core");
+  return invoke<string>("store_provider_key", { provider, apiKey });
+}
+
+/** Remove a provider's stored key. Best-effort: a missing entry is fine. */
+export async function forgetProviderKey(provider: string): Promise<void> {
+  if (!isTauri) return;
+  const { invoke } = await import("@tauri-apps/api/core");
+  await invoke("forget_provider_key", { provider });
+}

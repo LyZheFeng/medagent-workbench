@@ -60,6 +60,9 @@ pnpm --filter @ai4s/desktop tauri dev
 - 4 个一键工作流改为医学场景,内置示例换成模拟诊断试验数据
 - **App 身份独立**:bundle identifier 为 `com.medagent.workbench`,版本线从 0.8.0 起,
   应用内更新检查指向本仓库 —— 不会再被上游版本"更新"覆盖(旧版数据目录首次启动时自动迁移)
+- **API key 不写进配置文件**:provider key 存进系统凭据库(Windows 凭据管理器 /
+  macOS 钥匙串 / Linux libsecret),`opencode.json` 只保留 `{env:MEDAGENT_KEY_<PROVIDER>}`
+  引用,启动时注入;旧配置里已有的明文 key 在首次启动时自动迁移
 - 移除无引用的 `xlsx` 直链依赖;`.gitattributes` 固定换行为 LF
 
 ## 尚未完成(不隐瞒)

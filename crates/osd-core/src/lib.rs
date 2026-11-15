@@ -30,6 +30,7 @@ pub mod runs;
 pub mod runs_index;
 pub mod runtime;
 pub mod screens;
+pub mod secrets;
 pub mod session_find;
 pub mod session_sync;
 pub mod settings_requests;

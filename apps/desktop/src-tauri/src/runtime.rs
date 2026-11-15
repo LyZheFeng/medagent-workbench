@@ -247,6 +247,26 @@ pub fn configure_opencode(
     osd_core::runtime::configure_opencode(&env_of(&app), provider, api_key, model, base_url, None, &[])
 }
 
+/// Put one provider's key in the OS credential store and hand back the env var
+/// the config must name. The custom-endpoint form stores the key here FIRST and
+/// then patches the config with `{env:VAR}` through the runtime API — the key
+/// itself never travels into `opencode.json`.
+#[tauri::command(async)]
+pub fn store_provider_key(provider: String, api_key: String) -> Result<String, String> {
+    let key = api_key.trim();
+    if key.is_empty() {
+        return Err("the API key is empty".into());
+    }
+    osd_core::secrets::store(&provider, key)?;
+    Ok(osd_core::secrets::env_var(&provider))
+}
+
+/// Drop a provider's stored key. Best-effort cleanup; a missing entry is fine.
+#[tauri::command(async)]
+pub fn forget_provider_key(provider: String) -> Result<(), String> {
+    osd_core::secrets::forget(&provider)
+}
+
 #[tauri::command]
 pub fn get_approval_mode(app: AppHandle) -> Result<String, String> {
     osd_core::runtime::get_approval_mode(&env_of(&app))

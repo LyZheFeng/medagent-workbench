@@ -463,6 +463,12 @@ pub struct ProviderCredentials<'a> {
 
 /// Merge provider credentials/model into existing OpenCode config JSON.
 /// Empty fields are left untouched; existing unrelated keys are preserved.
+///
+/// The key itself is NOT written: `options.apiKey` holds
+/// `{env:MEDAGENT_KEY_<PROVIDER>}` and the value lives in the OS credential
+/// store (`crate::secrets`), which the sidecar reads at spawn time. A non-empty
+/// `api_key` is the caller saying "this provider has a credential now"; the
+/// caller has already stored it before reaching here.
 pub fn merge_config(existing: &str, creds: &ProviderCredentials) -> Result<String, String> {
     let ProviderCredentials {
         provider,
@@ -506,7 +512,10 @@ pub fn merge_config(existing: &str, creds: &ProviderCredentials) -> Result<Strin
         }
         let oobj = options.as_object_mut().unwrap();
         if !api_key.is_empty() {
-            oobj.insert("apiKey".to_string(), json!(api_key));
+            oobj.insert(
+                "apiKey".to_string(),
+                json!(crate::secrets::placeholder(provider)),
+            );
         }
         if let Some(b) = base_url {
             if !b.is_empty() {
@@ -545,6 +554,89 @@ pub fn merge_config(existing: &str, creds: &ProviderCredentials) -> Result<Strin
     }
 
     serde_json::to_string_pretty(&root).map_err(|e| e.to_string())
+}
+
+/// Every provider whose `options.apiKey` is a literal secret rather than a
+/// runtime reference: `(provider id, the key)`. This is what the one-time
+/// migration moves into the OS credential store; the config is only rewritten
+/// after every entry here has been stored successfully.
+pub fn plaintext_api_keys(existing: &str) -> Vec<(String, String)> {
+    let Some(root) = read_config(existing) else {
+        return Vec::new();
+    };
+    root.get("provider")
+        .and_then(|p| p.as_object())
+        .map(|providers| {
+            providers
+                .iter()
+                .filter_map(|(id, entry)| {
+                    let value = entry.get("options")?.get("apiKey")?.as_str()?.trim();
+                    (!value.is_empty() && !crate::secrets::is_reference(value))
+                        .then(|| (id.clone(), value.to_string()))
+                })
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+/// Rewrite every literal `options.apiKey` as its
+/// `{env:MEDAGENT_KEY_<PROVIDER>}` reference. Returns None when there is
+/// nothing to change — no write, no sidecar restart.
+///
+/// Only call this after the keys have been stored: a config that references a
+/// variable nobody sets is a provider that sends no credentials at all.
+pub fn migrate_provider_keys(existing: &str) -> Option<String> {
+    let mut root = read_config(existing)?;
+    let providers = root.get_mut("provider")?.as_object_mut()?;
+    let mut changed = false;
+    for (id, entry) in providers.iter_mut() {
+        let Some(options) = entry.get_mut("options").and_then(|o| o.as_object_mut()) else {
+            continue;
+        };
+        let Some(value) = options.get("apiKey").and_then(|v| v.as_str()) else {
+            continue;
+        };
+        if value.trim().is_empty() || crate::secrets::is_reference(value) {
+            continue;
+        }
+        options.insert(
+            "apiKey".to_string(),
+            json!(crate::secrets::placeholder(id)),
+        );
+        changed = true;
+    }
+    if !changed {
+        return None;
+    }
+    serde_json::to_string_pretty(&root).ok()
+}
+
+/// Provider ids whose key the sidecar must receive in its environment, paired
+/// with the variable named in the config: `(provider, MEDAGENT_KEY_…)`.
+///
+/// Read from the config rather than derived from a list of providers, so a
+/// config edited by hand (or restored from another machine) is honoured as
+/// written. `{file:…}` references are the runtime's own business, not ours.
+pub fn provider_env_refs(existing: &str) -> Vec<(String, String)> {
+    let Some(root) = read_config(existing) else {
+        return Vec::new();
+    };
+    root.get("provider")
+        .and_then(|p| p.as_object())
+        .map(|providers| {
+            providers
+                .iter()
+                .filter_map(|(id, entry)| {
+                    let value = entry.get("options")?.get("apiKey")?.as_str()?.trim();
+                    let var = value
+                        .strip_prefix("{env:")
+                        .and_then(|v| v.strip_suffix('}'))?
+                        .trim();
+                    (!var.is_empty()).then(|| (id.clone(), var.to_string()))
+                })
+                .collect()
+        })
+        .unwrap_or_default()
 }
 
 /// Point the config's `plugin` array at the deployed goal plugin, replacing
@@ -1231,7 +1323,12 @@ mod tests {
         let out = merge_config("", &creds("anthropic", "sk-test", "anthropic/claude-sonnet-4-5")).unwrap();
         let v: Value = serde_json::from_str(&out).unwrap();
         assert_eq!(v["model"], "anthropic/claude-sonnet-4-5");
-        assert_eq!(v["provider"]["anthropic"]["options"]["apiKey"], "sk-test");
+        // The key never lands here — only the reference to its env var.
+        assert_eq!(
+            v["provider"]["anthropic"]["options"]["apiKey"],
+            "{env:MEDAGENT_KEY_ANTHROPIC}"
+        );
+        assert!(!out.contains("sk-test"), "the literal key reached the config");
         // A catalog id takes its models from models.dev — writing an empty
         // `models` map here would hide every one of them.
         assert!(v["provider"]["anthropic"].get("models").is_none());
@@ -1244,8 +1341,14 @@ mod tests {
         let out = merge_config(existing, &creds("anthropic", "sk-new", "")).unwrap();
         let v: Value = serde_json::from_str(&out).unwrap();
         assert_eq!(v["theme"], "dark");
+        // Somebody else's literal entry is left exactly as it was: migration is
+        // what converts plaintext, not an unrelated provider write.
         assert_eq!(v["provider"]["openai"]["options"]["apiKey"], "old");
-        assert_eq!(v["provider"]["anthropic"]["options"]["apiKey"], "sk-new");
+        assert_eq!(
+            v["provider"]["anthropic"]["options"]["apiKey"],
+            "{env:MEDAGENT_KEY_ANTHROPIC}"
+        );
+        assert!(!out.contains("sk-new"), "the literal key reached the config");
     }
 
     #[test]
@@ -1312,6 +1415,82 @@ mod tests {
         assert_eq!(p["npm"], "@ai-sdk/anthropic");
         assert_eq!(p["models"]["old"]["limit"]["context"], 131072);
         assert_eq!(p["models"]["new"]["name"], "new");
+    }
+
+    #[test]
+    fn finds_every_literal_key_and_nothing_else() {
+        let config = r#"{
+            "provider": {
+                "anthropic": {"options": {"apiKey": "sk-anthropic"}},
+                "openai": {"options": {"apiKey": "{env:OPENAI_API_KEY}"}},
+                "local": {"options": {"apiKey": "{file:/run/secrets/k}"}},
+                "free": {"options": {"baseURL": "https://x"}},
+                "blank": {"options": {"apiKey": "   "}},
+                "weird": {"models": {}}
+            }
+        }"#;
+        let mut found = plaintext_api_keys(config);
+        found.sort();
+        assert_eq!(
+            found,
+            vec![("anthropic".to_string(), "sk-anthropic".to_string())]
+        );
+        // A config the app cannot read is never rewritten from a guess.
+        assert!(plaintext_api_keys("{not json").is_empty());
+    }
+
+    #[test]
+    fn migration_replaces_each_literal_with_its_env_reference() {
+        let config = r#"{"model":"a/b","provider":{
+            "anthropic":{"options":{"apiKey":"sk-1","baseURL":"https://a"}},
+            "kny":{"name":"mine","npm":"@ai-sdk/anthropic",
+                   "options":{"apiKey":"sk-2"},"models":{"m":{"name":"m"}}}
+        },"theme":"dark"}"#;
+        let migrated = migrate_provider_keys(config).expect("something changed");
+        let v: Value = serde_json::from_str(&migrated).unwrap();
+        assert_eq!(
+            v["provider"]["anthropic"]["options"]["apiKey"],
+            "{env:MEDAGENT_KEY_ANTHROPIC}"
+        );
+        assert_eq!(
+            v["provider"]["kny"]["options"]["apiKey"],
+            "{env:MEDAGENT_KEY_KNY}"
+        );
+        // Everything else — the endpoint's SDK, models, base URL, top-level
+        // settings — survives the rewrite untouched.
+        assert_eq!(v["provider"]["anthropic"]["options"]["baseURL"], "https://a");
+        assert_eq!(v["provider"]["kny"]["npm"], "@ai-sdk/anthropic");
+        assert_eq!(v["provider"]["kny"]["models"]["m"]["name"], "m");
+        assert_eq!(v["model"], "a/b");
+        assert_eq!(v["theme"], "dark");
+        assert!(!migrated.contains("sk-1") && !migrated.contains("sk-2"));
+        // Idempotent: a second run has nothing to do, so nothing is rewritten
+        // (and the sidecar is not restarted for no reason).
+        assert!(migrate_provider_keys(&migrated).is_none());
+    }
+
+    #[test]
+    fn migration_leaves_configs_it_cannot_read_alone() {
+        assert!(migrate_provider_keys("{not json").is_none());
+        assert!(migrate_provider_keys("{}").is_none());
+        assert!(migrate_provider_keys(r#"{"provider":{"a":{"options":{}}}}"#).is_none());
+    }
+
+    #[test]
+    fn the_sidecar_env_pairs_come_from_the_config() {
+        let config = r#"{"provider":{
+            "medagent-glm":{"options":{"apiKey":"{env:MEDAGENT_KEY_MEDAGENT_GLM}"}},
+            "anthropic":{"options":{"apiKey":"sk-literal"}},
+            "local":{"options":{"apiKey":"{file:/run/secrets/k}"}}
+        }}"#;
+        assert_eq!(
+            provider_env_refs(config),
+            vec![(
+                "medagent-glm".to_string(),
+                "MEDAGENT_KEY_MEDAGENT_GLM".to_string()
+            )]
+        );
+        assert!(provider_env_refs("{}").is_empty());
     }
 
     #[test]

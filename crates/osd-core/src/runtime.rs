@@ -1751,6 +1751,13 @@ fn spawn_sidecar(env: &Env, port: u16, generation: u64) -> Result<Child, String>
     // all decline to touch it and leave the app respawning a process that exits
     // every time (#118). The file is moved aside, never deleted.
     quarantine_unreadable_configs(env);
+    // Provider keys belong in the OS credential store, not in the config: any
+    // literal `options.apiKey` left by an older build (or restored from another
+    // machine) is moved there and replaced with `{env:MEDAGENT_KEY_<PROVIDER>}`.
+    // Idempotent, and it never drops a key it could not store.
+    for warning in migrate_plaintext_provider_keys(env) {
+        crate::debug_log::append(env, &format!("[provider-key] {warning}"));
+    }
     let cfg_file = effective_config_file(env)?;
     // Safety default (AGENTS.md non-negotiable): on first run, seed the
     // "approve" permission mode so dangerous shell commands prompt for
@@ -1932,6 +1939,18 @@ fn spawn_sidecar(env: &Env, port: u16, generation: u64) -> Result<Child, String>
     }
     *SIDECAR_PROXY.lock().unwrap_or_else(|e| e.into_inner()) =
         Some(effective_proxy(&proxy_mode, &proxy_url).unwrap_or_default());
+    // The config names `{env:MEDAGENT_KEY_<PROVIDER>}`; the values come from the
+    // OS credential store and ride in the sidecar's own environment. A provider
+    // with no stored key simply gets no variable — the runtime then sends an
+    // unauthenticated request, which is a legible auth error rather than a
+    // secret on disk.
+    let (key_env, key_warnings) = provider_key_env(env);
+    for warning in &key_warnings {
+        crate::debug_log::append(env, &format!("[provider-key] {warning}"));
+    }
+    for (var, key) in key_env {
+        cmd.env(var, key);
+    }
 
     let mut child = spawn_tied_to_our_lifetime(cmd)
         .map_err(|e| format!("failed to spawn opencode: {e}"))?;
@@ -3737,6 +3756,80 @@ mod tests {
         );
         fs::remove_dir_all(&tmp).unwrap();
     }
+
+    /// P0-1 end to end at the Rust seam: a legacy plaintext key is moved into
+    /// the OS credential store, the config keeps only `{env:…}`, and the
+    /// environment the sidecar is handed resolves that reference.
+    #[test]
+    fn a_plaintext_key_is_migrated_to_the_store_and_reaches_the_sidecar_env() {
+        let provider = format!("osd-test-{}", std::process::id());
+        if let Err(e) = crate::secrets::store(&provider, "probe") {
+            eprintln!("skipped: the OS credential store is unavailable: {e}");
+            return;
+        }
+        crate::secrets::forget(&provider).unwrap();
+
+        let (env, dir) = temp_env("provider-keys");
+        let cfg = super::opencode_config_file(&env).unwrap();
+        fs::create_dir_all(cfg.parent().unwrap()).unwrap();
+        // The shape the app wrote before this change.
+        fs::write(
+            &cfg,
+            format!(
+                r#"{{"model":"{provider}/m","provider":{{"{provider}":{{"npm":"@ai-sdk/openai-compatible","options":{{"apiKey":"sk-literal-123","baseURL":"http://127.0.0.1:9/v1"}},"models":{{"m":{{"name":"m"}}}}}}}}}}"#
+            ),
+        )
+        .unwrap();
+
+        super::migrate_plaintext_provider_keys(&env);
+
+        let after = fs::read_to_string(&cfg).unwrap();
+        assert!(!after.contains("sk-literal-123"), "the literal key survived: {after}");
+        assert!(after.contains(&crate::secrets::placeholder(&provider)), "{after}");
+        assert_eq!(
+            crate::secrets::load(&provider).unwrap().as_deref(),
+            Some("sk-literal-123")
+        );
+
+        let (pairs, warnings) = super::provider_key_env(&env);
+        assert!(warnings.is_empty(), "{warnings:?}");
+        assert_eq!(
+            pairs,
+            vec![(
+                crate::secrets::env_var(&provider),
+                "sk-literal-123".to_string()
+            )]
+        );
+
+        // Idempotent: a second start does not rewrite (and so does not restart
+        // the sidecar for nothing).
+        assert!(crate::opencode_config::migrate_provider_keys(&after).is_none());
+
+        crate::secrets::forget(&provider).unwrap();
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    /// A provider whose key is referenced but not stored must be reported, not
+    /// silently launched without credentials — that turns into an unexplained
+    /// 401 far from its cause.
+    #[test]
+    fn a_reference_without_a_stored_key_is_reported() {
+        let provider = format!("osd-missing-{}", std::process::id());
+        let (env, dir) = temp_env("provider-missing");
+        let cfg = super::opencode_config_file(&env).unwrap();
+        fs::create_dir_all(cfg.parent().unwrap()).unwrap();
+        let config = r#"{"provider":{"PROVIDER":{"options":{"apiKey":"{env:VAR}"}}}}"#
+            .replace("PROVIDER", &provider)
+            .replace("VAR", &crate::secrets::env_var(&provider));
+        fs::write(&cfg, config).unwrap();
+
+        let (pairs, warnings) = super::provider_key_env(&env);
+        assert!(pairs.is_empty(), "{pairs:?}");
+        assert_eq!(warnings.len(), 1, "{warnings:?}");
+        assert!(warnings[0].contains(&provider), "{warnings:?}");
+
+        let _ = fs::remove_dir_all(&dir);
+    }
 }
 
 /// Remove an entry from a map section of the app-private global OpenCode
@@ -4077,8 +4170,93 @@ pub fn set_mirror_setting(env: &Env, pypi: String, python: String) -> Result<(),
     std::fs::write(&path, lines.join("\n")).map_err(|e| e.to_string())
 }
 
+/// Move every literal `provider.*.options.apiKey` in the config into the OS
+/// credential store, then replace it with its `{env:…}` reference.
+///
+/// Returns warnings for the caller to log; empty means either "nothing to do"
+/// or "done". Only a complete pass rewrites the config — a partial one would
+/// point a provider at a variable nothing sets, which loses the credential.
+fn migrate_plaintext_provider_keys(env: &Env) -> Vec<String> {
+    let mut warnings = Vec::new();
+    let path = match effective_config_file(env) {
+        Ok(p) => p,
+        Err(e) => {
+            warnings.push(format!("could not locate the config to migrate: {e}"));
+            return warnings;
+        }
+    };
+    let existing = std::fs::read_to_string(&path).unwrap_or_default();
+    let literal = crate::opencode_config::plaintext_api_keys(&existing);
+    if literal.is_empty() {
+        return warnings;
+    }
+    let mut failed = false;
+    for (provider, key) in &literal {
+        if let Err(e) = crate::secrets::store(provider, key) {
+            failed = true;
+            warnings.push(format!("left the {provider} key in the config: {e}"));
+        }
+    }
+    if failed {
+        return warnings;
+    }
+    if let Some(migrated) = crate::opencode_config::migrate_provider_keys(&existing) {
+        match write_atomic(&path, &migrated) {
+            Ok(()) => {
+                tighten_private(&path);
+                crate::debug_log::append(
+                    env,
+                    &format!(
+                        "[provider-key] moved {} provider key(s) out of the config into the OS credential store",
+                        literal.len()
+                    ),
+                );
+            }
+            Err(e) => warnings.push(format!(
+                "the keys were stored but the config was not rewritten: {e}"
+            )),
+        }
+    }
+    warnings
+}
+
+/// The environment the sidecar needs for the `{env:…}` references in its
+/// config, read from the OS credential store: `(variable, value)` pairs plus
+/// warnings for providers that have no readable entry.
+///
+/// A variable already present in this process's environment is left alone (the
+/// sidecar inherits it) — that is how a container or a systemd unit supplies a
+/// key without any store at all.
+fn provider_key_env(env: &Env) -> (Vec<(String, String)>, Vec<String>) {
+    let mut out = Vec::new();
+    let mut warnings = Vec::new();
+    let existing = match effective_config_file(env) {
+        Ok(path) => std::fs::read_to_string(path).unwrap_or_default(),
+        Err(_) => String::new(),
+    };
+    for (provider, var) in crate::opencode_config::provider_env_refs(&existing) {
+        if std::env::var_os(&var).is_some() {
+            continue;
+        }
+        match crate::secrets::load(&provider) {
+            Ok(Some(key)) => out.push((var, key)),
+            Ok(None) => warnings.push(format!(
+                "no stored key for `{provider}` (the config expects {var}): set it again in \
+                 Settings → Providers, or export {var} before starting"
+            )),
+            Err(e) => warnings.push(format!("could not read the stored key for `{provider}`: {e}")),
+        }
+    }
+    (out, warnings)
+}
+
 /// Write the provider key/model into the app-private OpenCode config and restart
 /// the sidecar so it picks them up. Returns the same base URL (stable port).
+///
+/// The key itself is written to the OS credential store; the config gets only
+/// `{env:MEDAGENT_KEY_<PROVIDER>}` (`crate::secrets`). A store that refuses the
+/// key fails the whole call: the alternative would be a plaintext secret on
+/// disk, which is the thing this exists to prevent.
 pub fn configure_opencode(
     env: &Env,
     provider: String,
@@ -4090,6 +4268,12 @@ pub fn configure_opencode(
 ) -> Result<String, String> {
     let path = opencode_config_file(env)?;
     let existing = std::fs::read_to_string(&path).unwrap_or_default();
+    // Whitespace is not a key: "nothing to change" has to mean exactly that,
+    // or the config would point at a variable that was never stored.
+    let api_key = api_key.trim().to_string();
+    if !api_key.is_empty() {
+        crate::secrets::store(&provider, &api_key)?;
+    }
     let merged = merge_config(
         &existing,
         &crate::opencode_config::ProviderCredentials {

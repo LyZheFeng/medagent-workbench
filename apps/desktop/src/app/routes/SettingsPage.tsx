@@ -59,6 +59,9 @@ import {
   type MirrorSetting,
   probeEndpointModels,
   type ProbedModel,
+  restartRuntime,
+  storeProviderKey,
+  forgetProviderKey,
 } from "@/lib/tauri";
 import { useSetupStore } from "@/lib/setup";
 import { isGatewayWeb } from "@/lib/webMode";
@@ -712,6 +715,8 @@ function SettingsPageContent() {
         // Best-effort: most custom providers carry their key inline (no auth
         // entry), and DELETE on a missing one is expected to fail.
         await getClient()!.removeProviderAuth(providerID).catch(() => undefined);
+        // The key this form stored in the OS credential store goes with it.
+        await forgetProviderKey(providerID).catch(() => undefined);
       } else {
         await getClient()!.removeProviderAuth(providerID);
       }
@@ -779,14 +784,32 @@ function SettingsPageContent() {
         const ctx = cContexts[m] ?? (Number.isFinite(typedCtx) && typedCtx > 0 ? typedCtx : 0);
         if (ctx > 0) contexts[m] = ctx;
       }
+      // The key does not go into opencode.json: it is stored in the OS
+      // credential store and the config only names `{env:MEDAGENT_KEY_<ID>}`,
+      // which the runtime injects when it spawns the sidecar. The plain browser
+      // dev build has no credential store, so it keeps the old inline value
+      // (developer-only; the gateway web client refuses config writes anyway).
+      const key = cKey.trim();
+      let apiKey = key || undefined;
+      let keyVar: string | undefined;
+      if (key && isTauri) {
+        keyVar = await storeProviderKey(id, key);
+        apiKey = `{env:${keyVar}}`;
+      }
       await getClient()!.addCustomProvider(id, {
         name: cName.trim(),
         npm: cNpm,
         baseURL: cUrl.trim(),
-        apiKey: cKey.trim() || undefined,
+        apiKey,
         models,
         contexts,
       });
+      if (keyVar) {
+        // A newly stored variable only reaches the sidecar by restarting it;
+        // reconnect so the next request does not dial the old process.
+        await restartRuntime();
+        await useRuntimeStore.getState().connectRetry();
+      }
       toast.success(t("toast.endpointAdded", { name: cName.trim() }));
       setShowCustom(false);
       setCName("");
