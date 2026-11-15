@@ -146,6 +146,14 @@ class Output(unittest.TestCase):
         warnings = " ".join(payload["rows"][0]["warnings"])
         self.assertIn("--exact", warnings)
 
+    def test_the_exact_run_does_not_tell_you_to_rerun_with_exact(self):
+        # Found by running the demo: the advice was unconditional, so a caller who
+        # had already passed --exact was told to pass --exact.
+        _, payload, _ = self.run_main("tp,fp,tn,fn\n4,1,1,0\n", "--exact")
+        warnings = " ".join(payload["rows"][0]["warnings"])
+        self.assertNotIn("--exact", warnings)
+        self.assertIn("exact (Clopper-Pearson)", warnings)
+
     def test_usage_error_returns_two(self):
         self.assertEqual(ds.main([]), 2)
 

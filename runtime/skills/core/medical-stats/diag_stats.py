@@ -168,16 +168,23 @@ def analyze(row: dict, exact: bool = False) -> dict:
         "lr_positive_ci": [round(x, 3) for x in lr_p_ci] if lr_p_ci else None,
         "lr_negative_ci": [round(x, 3) for x in lr_n_ci] if lr_n_ci else None,
         "youden_j": round(sens[0] + spec[0] - 1, 4),
-        "warnings": _warnings(tp, fp, tn, fn, lr_p_ci),
+        "warnings": _warnings(tp, fp, tn, fn, lr_p_ci, exact),
     }
 
 
 def _warnings(tp: int, fp: int, tn: int, fn: int,
-              lr_p_ci: tuple[float, float] | None) -> list[str]:
+              lr_p_ci: tuple[float, float] | None, exact: bool) -> list[str]:
     w = []
     if min(tp, fp, tn, fn) < 5:
-        w.append("a 2x2 cell has <5 events; Wilson is optimistic there — rerun "
-                 "with --exact for Clopper-Pearson intervals")
+        # The advice has to match the interval actually used: telling someone who
+        # already passed --exact to rerun with --exact is worse than saying nothing.
+        w.append(
+            "a 2x2 cell has <5 events; these are exact (Clopper-Pearson) intervals "
+            "— report them as exact"
+            if exact else
+            "a 2x2 cell has <5 events; Wilson is optimistic there — rerun with "
+            "--exact for Clopper-Pearson intervals"
+        )
     if tp + fp == 0 or tn + fn == 0:
         w.append("PPV or NPV undefined (zero denominator)")
     if (tp + fn) and (tn + fp) and abs((tp + fn) / (tp + fn + tn + fp) - 0.5) > 0.4:
