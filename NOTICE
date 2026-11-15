@@ -1,0 +1,43 @@
+MedAgent Workbench (医学智能体桌面工作台)
+Copyright (c) 2026 LyZheFeng
+
+This product is a derivative work of Open Science Desktop (MIT):
+
+  Open Science Desktop
+  Copyright (c) 2026 AI4S Workbench contributors
+  https://github.com/ai4s-research/open-science
+  Licensed under the MIT License.
+
+Both copyright notices and the MIT permission notice are in LICENSE, which covers
+this repository as a whole.
+
+What this fork changes
+----------------------
+
+- The product identity: product name, window title, icons and theme; the bundle
+  identifier (com.medagent.workbench, renamed in 0.8.0 from com.ai4s.workbench)
+  and the app's own version line and release feed. It is a distinct application
+  to the OS, not an upstream build.
+- The bundled domain content: the science connectors, the skill set, the
+  one-click workflow prompts and the example project are medical instead of
+  general-science. The medical skills added here live in
+  runtime/skills/core/{clinical-evidence,medical-stats,med-figures,case-report,
+  literature-review,citation-reviewer,paper-to-report} and the example in
+  examples/clinical-diagnostics.
+- Dependency and repository hygiene: an unreferenced `xlsx` tarball dependency was
+  removed, and `.gitattributes` pins text files to LF.
+
+Everything else — the agent runtime integration, the desktop shell, the terminal,
+the provenance ledger, the gateway, the browser and computer-use layers — is
+upstream work, unmodified except where a commit says otherwise.
+
+Third-party components
+----------------------
+
+Bundled third-party material keeps its own license and attribution:
+
+- runtime/skills/external/ — external skill packs (each skill carries its own
+  SKILL.md / LICENSE).
+- native/ — the computer-use providers are ported from Orca (MIT).
+- The bundled OpenCode runtime, uv, and agent-browser binaries are fetched by the
+  scripts under scripts/dev/ and are distributed under their own licenses.
