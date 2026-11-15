@@ -1,6 +1,6 @@
 {
   "name": "ai4s-workbench",
-  "version": "0.7.1",
+  "version": "0.8.0",
   "private": true,
   "description": "医学智能体工作台 (MedAgent Workbench) — 本地优先、模型无关的医学 AI 智能体研究工作台。",
   "license": "MIT",
