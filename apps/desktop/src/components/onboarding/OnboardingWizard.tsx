@@ -1,12 +1,23 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Check, ChevronRight, KeyRound, Loader2, Search } from "lucide-react";
+import {
+  ArrowLeft,
+  Cable,
+  Check,
+  ChevronRight,
+  KeyRound,
+  Loader2,
+  Search,
+} from "lucide-react";
 import type { ProviderAuthMethod, ProviderCatalogEntry } from "@ai4s/sdk";
 import { getClient, useRuntimeStore } from "@/lib/runtime";
-import { restartRuntime, isTauri, storeProviderKey } from "@/lib/tauri";
+import { restartRuntime, isTauri, probeEndpointModels, storeProviderKey } from "@/lib/tauri";
 import { DEFAULT_PROJECT, useLayoutStore } from "@/lib/layout";
 import {
+  ANTHROPIC_COMPATIBLE,
+  OPENAI_COMPATIBLE,
+  customEndpointDraft,
   exampleOutcome,
   examplePrompt,
   filterProviders,
@@ -14,6 +25,7 @@ import {
   markOnboardingComplete,
   modelChoicesFor,
   offersOnboarding,
+  probeKind,
   providerChoices,
   startOnboardingExample,
   type ExampleStart,
@@ -21,7 +33,7 @@ import {
   type ProviderChoice,
 } from "@/lib/onboarding";
 import { cn } from "@/lib/cn";
-import { inputCls } from "@/components/settings/inputCls";
+import { inputCls, selectCls } from "@/components/settings/inputCls";
 import { isGatewayWeb } from "@/lib/webMode";
 import { ZEN_PROVIDER_ID } from "@/lib/zenModels";
 
@@ -34,9 +46,13 @@ type Step = "provider" | "key" | "model" | "example";
 export function OnboardingWizard({
   desktop = isTauri,
   web = isGatewayWeb,
+  probe = isTauri ? probeEndpointModels : null,
 }: {
   desktop?: boolean;
   web?: boolean;
+  /** Asks a custom endpoint which models it serves. Desktop-only (the probe runs
+   *  in Rust) and injectable so the flow can be tested without one. */
+  probe?: typeof probeEndpointModels | null;
 } = {}) {
   const { t, i18n } = useTranslation(["settings", "common"]);
   const navigate = useNavigate();
@@ -55,6 +71,16 @@ export function OnboardingWizard({
   const [step, setStep] = useState<Step>("provider");
   const [selected, setSelected] = useState<ProviderChoice | null>(null);
   const [query, setQuery] = useState("");
+
+  // The custom endpoint lives in the provider step as a form, not a fifth step:
+  // its fields are the provider's identity, and the key/model/test steps after
+  // it are the same ones the catalog providers use.
+  const [customOpen, setCustomOpen] = useState(false);
+  const [cName, setCName] = useState("");
+  const [cUrl, setCUrl] = useState("");
+  const [cStyle, setCStyle] = useState(OPENAI_COMPATIBLE);
+  const [cModels, setCModels] = useState("");
+  const [customError, setCustomError] = useState<string | null>(null);
 
   const [keyInput, setKeyInput] = useState("");
   const [keyBusy, setKeyBusy] = useState(false);
@@ -214,16 +240,66 @@ export function OnboardingWizard({
     setKeyBusy(true);
     setKeyError(null);
     try {
-      // Same order as Settings: the credential store first, the reference
-      // second. `options.apiKey` beats OpenCode's own auth store, so the
-      // reference is what takes effect; the plaintext entry the old flow left
-      // in the runtime's auth file is removed, not left beside it. The key
-      // never enters the config file.
-      const envVar = await storeProviderKey(selected.id, keyInput.trim());
       const client = getClient();
       if (!client) throw new Error(t("onboarding.connectFailed", { message: "no client" }));
-      await client.setProviderApiKeyRef(selected.id, `{env:${envVar}}`);
-      await client.removeProviderAuth(selected.id).catch(() => undefined);
+      if (selected.custom) {
+        // A custom endpoint's provider entry does not exist yet: this step is
+        // where the form becomes a provider. Models come from the form, or from
+        // asking the endpoint with the key the user just typed — the probe needs
+        // that key, which is why it runs here and not in the form.
+        let draft = selected.custom;
+        if (draft.models.length === 0) {
+          if (!probe) throw new Error(t("onboarding.customNoModels"));
+          let found;
+          try {
+            found = await probe(draft.baseURL, keyInput.trim(), probeKind(draft.npm));
+          } catch (e) {
+            throw new Error(
+              t("onboarding.customProbeFailed", {
+                message: e instanceof Error ? e.message : String(e),
+              }),
+            );
+          }
+          const models = found.models.map((model) => model.id);
+          const contexts: Record<string, number> = {};
+          for (const model of found.models) {
+            if (model.context && model.context > 0) contexts[model.id] = model.context;
+          }
+          if (models.length === 0) throw new Error(t("onboarding.customNoModels"));
+          // The probe reports the URL that actually served the list (relay
+          // gateways often need `/v1`); use that rather than the typed one.
+          draft = { ...draft, baseURL: found.baseUrl, models, contexts };
+          setCUrl(found.baseUrl);
+          setSelected({ ...selected, custom: draft });
+        }
+        // Same order as Settings: the store first, the config reference second.
+        // The key is never a literal in the config file.
+        const envVar = await storeProviderKey(draft.id, keyInput.trim());
+        try {
+          await client.addCustomProvider(draft.id, {
+            name: draft.name,
+            npm: draft.npm,
+            baseURL: draft.baseURL,
+            apiKey: `{env:${envVar}}`,
+            models: draft.models,
+            contexts: draft.contexts,
+          });
+        } catch (e) {
+          throw new Error(
+            t("onboarding.customFailed", { message: e instanceof Error ? e.message : String(e) }),
+          );
+        }
+        await client.removeProviderAuth(draft.id).catch(() => undefined);
+      } else {
+        // Same order as Settings: the credential store first, the reference
+        // second. `options.apiKey` beats OpenCode's own auth store, so the
+        // reference is what takes effect; the plaintext entry the old flow left
+        // in the runtime's auth file is removed, not left beside it. The key
+        // never enters the config file.
+        const envVar = await storeProviderKey(selected.id, keyInput.trim());
+        await client.setProviderApiKeyRef(selected.id, `{env:${envVar}}`);
+        await client.removeProviderAuth(selected.id).catch(() => undefined);
+      }
       // The variable reaches the sidecar only when it is spawned again.
       await restartRuntime();
       await useRuntimeStore.getState().connectRetry();
@@ -236,12 +312,37 @@ export function OnboardingWizard({
       setKeyStored(true);
       setStep("model");
     } catch (e) {
-      // The store refused the key: no config was touched, so nothing is
-      // half-written and the message can be acted on as it stands.
-      setKeyError(t("onboarding.keyFailed", { message: e instanceof Error ? e.message : String(e) }));
+      const message = e instanceof Error ? e.message : String(e);
+      // The store refused the key (or the endpoint could not be added): no
+      // config was touched, so nothing is half-written and the message can be
+      // acted on as it stands. Custom-endpoint failures already say what failed.
+      setKeyError(selected.custom ? message : t("onboarding.keyFailed", { message }));
     } finally {
       setKeyBusy(false);
     }
+  };
+
+  /** Turn the custom-endpoint form into a provider choice: it only holds the
+   *  name, dialect, URL and (optionally) model ids; the next step saves the key
+   *  and creates the config entry. */
+  const submitCustom = () => {
+    setCustomError(null);
+    const draft = customEndpointDraft({
+      name: cName,
+      baseURL: cUrl,
+      npm: cStyle,
+      models: cModels,
+    });
+    if (!draft) {
+      setCustomError(t("onboarding.customInvalid"));
+      return;
+    }
+    setSelected({ id: draft.id, name: draft.name, needsKey: true, custom: draft });
+    setKeyInput("");
+    setKeyError(null);
+    setKeyStored(false);
+    setModelError(null);
+    setStep("key");
   };
 
   const chooseModel = async (model: ModelChoice) => {
@@ -281,8 +382,15 @@ export function OnboardingWizard({
   const back = () => {
     setModelError(null);
     setKeyError(null);
-    if (step === "key") setStep("provider");
-    else if (step === "model") setStep(selected?.needsKey ? "key" : "provider");
+    if (step === "key") {
+      // Back to the form, not to the catalog list: the draft is what the user
+      // was editing, and its fields are still in the custom form's state.
+      if (selected?.custom) {
+        setSelected(null);
+        setCustomOpen(true);
+      }
+      setStep("provider");
+    } else if (step === "model") setStep(selected?.needsKey ? "key" : "provider");
     else if (step === "example") {
       if (example?.sessionId) void useRuntimeStore.getState().interrupt(example.sessionId);
       setExample(null);
@@ -392,6 +500,117 @@ export function OnboardingWizard({
                   <p className="pt-1 text-[11.5px] leading-relaxed text-muted">
                     {t("onboarding.providerNote")}
                   </p>
+                  {/* A custom endpoint is a provider whose fields the catalog
+                      cannot supply: name, dialect, URL, model ids. It stays in
+                      this step because the key/model/test steps after it are the
+                      same ones every other provider uses. */}
+                  <div className="border-t border-faint">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCustomOpen((open) => !open);
+                        setCustomError(null);
+                      }}
+                      aria-expanded={customOpen}
+                      className="flex w-full items-center gap-2 py-2 text-left text-[13px] text-muted transition-colors hover:text-text"
+                    >
+                      <Cable size={13} className="shrink-0" />
+                      <span className="font-medium text-text">
+                        {t("providers.customEndpoint")}
+                      </span>
+                      <span className="min-w-0 flex-1 truncate text-[11px] text-muted/70">
+                        {t("providers.customEndpointHint")}
+                      </span>
+                      <ChevronRight
+                        size={13}
+                        className={cn("shrink-0 transition-transform", customOpen && "rotate-90")}
+                      />
+                    </button>
+                    {customOpen && (
+                      <div className="space-y-2.5 rounded-input border border-faint p-3">
+                        <label htmlFor="onboarding-custom-name" className="block">
+                          <span className="text-[12px] text-muted">{t("providers.fieldName")}</span>
+                          <input
+                            id="onboarding-custom-name"
+                            value={cName}
+                            onChange={(e) => setCName(e.target.value)}
+                            placeholder={t("providers.customNamePlaceholder")}
+                            className={inputCls("mt-1 w-full")}
+                            autoComplete="off"
+                            spellCheck={false}
+                          />
+                        </label>
+                        <label htmlFor="onboarding-custom-style" className="block">
+                          <span className="text-[12px] text-muted">
+                            {t("providers.fieldApiStyle")}
+                          </span>
+                          <select
+                            id="onboarding-custom-style"
+                            value={cStyle}
+                            onChange={(e) => setCStyle(e.target.value)}
+                            className={selectCls("mt-1 w-full")}
+                          >
+                            <option value={OPENAI_COMPATIBLE}>
+                              {t("providers.openaiCompatible")}
+                            </option>
+                            <option value={ANTHROPIC_COMPATIBLE}>
+                              {t("providers.anthropicCompatible")}
+                            </option>
+                          </select>
+                        </label>
+                        <label htmlFor="onboarding-custom-url" className="block">
+                          <span className="text-[12px] text-muted">
+                            {t("providers.fieldBaseUrl")}
+                          </span>
+                          <input
+                            id="onboarding-custom-url"
+                            value={cUrl}
+                            onChange={(e) => setCUrl(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") submitCustom();
+                            }}
+                            placeholder={t("providers.customUrlPlaceholder")}
+                            className={inputCls("mt-1 w-full font-mono")}
+                            autoComplete="off"
+                            spellCheck={false}
+                          />
+                        </label>
+                        <div>
+                          <label
+                            htmlFor="onboarding-custom-models"
+                            className="block text-[12px] text-muted"
+                          >
+                            {t("providers.fieldModels")}
+                          </label>
+                          <input
+                            id="onboarding-custom-models"
+                            value={cModels}
+                            onChange={(e) => setCModels(e.target.value)}
+                            placeholder={t("providers.customModelsPlaceholder")}
+                            className={inputCls("mt-1 w-full font-mono")}
+                            autoComplete="off"
+                            spellCheck={false}
+                          />
+                          <p className="mt-1 text-[11.5px] leading-relaxed text-muted">
+                            {t("onboarding.customModelsHint")}
+                          </p>
+                        </div>
+                        {customError && (
+                          <p className="text-[12.5px] leading-relaxed text-error">{customError}</p>
+                        )}
+                        <div className="flex justify-end pt-0.5">
+                          <button
+                            type="button"
+                            onClick={submitCustom}
+                            className="inline-flex items-center gap-1.5 rounded-input bg-accent px-4 py-2 text-[13px] font-medium text-white transition-opacity hover:opacity-90"
+                          >
+                            {t("onboarding.customContinue")}
+                            <ChevronRight size={13} />
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </>
               )}
             </div>

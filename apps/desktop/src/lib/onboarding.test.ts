@@ -3,7 +3,10 @@ import type { ProviderAuthMethod, ProviderCatalogEntry, ProviderInfo } from "@ai
 import type { ThreadBlock } from "@ai4s/shared";
 import type { Thread } from "./runtime";
 import {
+  ANTHROPIC_COMPATIBLE,
   ONBOARDING_DONE_KEY,
+  OPENAI_COMPATIBLE,
+  customEndpointDraft,
   exampleOutcome,
   examplePrompt,
   filterProviders,
@@ -11,6 +14,8 @@ import {
   markOnboardingComplete,
   modelChoicesFor,
   offersOnboarding,
+  parseModelIds,
+  probeKind,
   providerChoices,
   rankProviders,
 } from "./onboarding";
@@ -107,6 +112,58 @@ describe("model choices", () => {
 
   it("returns nothing for a provider that is not there", () => {
     expect(modelChoicesFor(providers, "anthropic")).toEqual([]);
+  });
+});
+
+describe("custom endpoint form", () => {
+  it("reads model ids the way people type them", () => {
+    expect(parseModelIds("glm-5, glm-4.5")).toEqual(["glm-5", "glm-4.5"]);
+    expect(parseModelIds("glm-5，glm-4.5\nglm-5")).toEqual(["glm-5", "glm-4.5"]);
+    expect(parseModelIds("  ")).toEqual([]);
+    expect(parseModelIds("glm-5,,glm-5")).toEqual(["glm-5"]);
+  });
+
+  it("builds the draft Settings would add, with the name-derived id", () => {
+    expect(
+      customEndpointDraft({
+        name: "  GLM ",
+        baseURL: " https://open.bigmodel.cn/api/paas/v4 ",
+        npm: OPENAI_COMPATIBLE,
+        models: "glm-4.5, glm-4.5-air",
+        contexts: { "glm-4.5": 128000 },
+      }),
+    ).toEqual({
+      id: "glm",
+      name: "GLM",
+      baseURL: "https://open.bigmodel.cn/api/paas/v4",
+      npm: OPENAI_COMPATIBLE,
+      models: ["glm-4.5", "glm-4.5-air"],
+      contexts: { "glm-4.5": 128000 },
+    });
+  });
+
+  it("accepts an empty model list: the key step can probe for it", () => {
+    const draft = customEndpointDraft({
+      name: "Local",
+      baseURL: "http://127.0.0.1:11434/v1",
+      npm: OPENAI_COMPATIBLE,
+      models: "",
+    });
+    expect(draft?.models).toEqual([]);
+  });
+
+  it("refuses what the runtime could not dial", () => {
+    const base = { name: "GLM", baseURL: "https://example.test/v1", npm: OPENAI_COMPATIBLE, models: "m" };
+    expect(customEndpointDraft({ ...base, name: "   " })).toBeNull();
+    expect(customEndpointDraft({ ...base, baseURL: "" })).toBeNull();
+    expect(customEndpointDraft({ ...base, baseURL: "example.test/v1" })).toBeNull();
+    expect(customEndpointDraft({ ...base, baseURL: "ftp://example.test/v1" })).toBeNull();
+    expect(customEndpointDraft({ ...base, baseURL: "https://" })).toBeNull();
+  });
+
+  it("asks the probe in the dialect the form selected", () => {
+    expect(probeKind(OPENAI_COMPATIBLE)).toBe("openai");
+    expect(probeKind(ANTHROPIC_COMPATIBLE)).toBe("anthropic");
   });
 });
 

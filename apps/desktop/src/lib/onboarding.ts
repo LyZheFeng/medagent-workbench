@@ -15,6 +15,7 @@
 import type { ProviderAuthMethod, ProviderCatalogEntry, ProviderInfo } from "@ai4s/sdk";
 import type { Thread } from "./runtime";
 import { useRuntimeStore } from "./runtime";
+import { customProviderId } from "./customProviderId";
 import { ZEN_PROVIDER_ID } from "./zenModels";
 
 /** localStorage flag: the wizard ran once (finished or deliberately skipped).
@@ -57,6 +58,78 @@ export interface ProviderChoice {
   name: string;
   /** False only for the built-in provider, which serves without credentials. */
   needsKey: boolean;
+  /** A custom endpoint the user is adding in this wizard; its provider entry
+   *  does not exist in the runtime config until the key step saves it. */
+  custom?: CustomEndpointDraft;
+}
+
+/** What the wizard's custom-endpoint form collects. The id is derived from the
+ *  name exactly as Settings does, so an endpoint added here and later seen
+ *  there is the same provider. The key is deliberately absent: it goes into the
+ *  OS credential store when the next step saves it, and the config only ever
+ *  receives `{env:MEDAGENT_KEY_…}`. */
+export interface CustomEndpointDraft {
+  id: string;
+  name: string;
+  baseURL: string;
+  /** The runtime's `npm` value — the API dialect, not a package of ours. */
+  npm: string;
+  /** Model ids, possibly empty until the endpoint is probed with the key. */
+  models: string[];
+  /** Context windows reported by the endpoint, keyed by model id. */
+  contexts: Record<string, number>;
+}
+
+/** The two API dialects the custom-endpoint form offers (Settings → Agents). */
+export const OPENAI_COMPATIBLE = "@ai-sdk/openai-compatible";
+export const ANTHROPIC_COMPATIBLE = "@ai-sdk/anthropic";
+
+/** Model ids typed into one field: commas (half- or full-width) and newlines
+ *  separate them; blanks and duplicates are dropped, order is kept. */
+export function parseModelIds(text: string): string[] {
+  const ids: string[] = [];
+  for (const part of text.split(/[,，\n\r]+/)) {
+    const id = part.trim();
+    if (id && !ids.includes(id)) ids.push(id);
+  }
+  return ids;
+}
+
+/** The draft for the custom-endpoint form, or null when it cannot describe a
+ *  provider: a blank name has no id, and a base URL must be something the
+ *  runtime can dial (http/https with a host). Models may be empty — they are
+ *  filled in by probing with the key, or typed by the user. */
+export function customEndpointDraft(input: {
+  name: string;
+  baseURL: string;
+  npm: string;
+  models: string;
+  contexts?: Record<string, number>;
+}): CustomEndpointDraft | null {
+  const name = input.name.trim();
+  const id = customProviderId(name);
+  if (!id) return null;
+  const baseURL = input.baseURL.trim();
+  let url: URL;
+  try {
+    url = new URL(baseURL);
+  } catch {
+    return null;
+  }
+  if ((url.protocol !== "http:" && url.protocol !== "https:") || !url.hostname) return null;
+  return {
+    id,
+    name,
+    baseURL,
+    npm: input.npm,
+    models: parseModelIds(input.models),
+    contexts: input.contexts ?? {},
+  };
+}
+
+/** Which model-list dialect the endpoint probe asks for. */
+export function probeKind(npm: string): "openai" | "anthropic" {
+  return npm === ANTHROPIC_COMPATIBLE ? "anthropic" : "openai";
 }
 
 /** Providers worth offering in a first-run step: everything the runtime can

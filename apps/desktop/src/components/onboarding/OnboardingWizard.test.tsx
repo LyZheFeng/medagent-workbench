@@ -22,6 +22,12 @@ const mine: ProviderInfo = {
   name: "GLM",
   models: [{ id: "glm-5", name: "GLM 5" }],
 };
+/** What a custom endpoint added in the wizard looks like to the runtime. */
+const addedEndpoint: ProviderInfo = {
+  id: "glm",
+  name: "GLM",
+  models: [{ id: "glm-4.5", name: "glm-4.5" }],
+};
 const deepseek: ProviderInfo = {
   id: "deepseek",
   name: "DeepSeek",
@@ -50,6 +56,7 @@ function clientMock() {
     setProviderApiKeyRef: vi.fn().mockResolvedValue(undefined),
     setProviderApiKey: vi.fn().mockResolvedValue(undefined),
     removeProviderAuth: vi.fn().mockResolvedValue(undefined),
+    addCustomProvider: vi.fn().mockResolvedValue(undefined),
   };
 }
 
@@ -64,12 +71,26 @@ function loadCatalogAfterKey() {
   });
 }
 
-async function renderWizard() {
+/** The same, for the custom-endpoint route: the provider only exists once the
+ *  wizard has written it through `addCustomProvider`. */
+function loadCatalogAfterEndpoint(client: ReturnType<typeof clientMock>) {
+  return vi.fn(async () => {
+    if (client.addCustomProvider.mock.calls.length > 0) {
+      useRuntimeStore.setState({ providers: [zen, addedEndpoint] });
+    }
+  });
+}
+
+async function renderWizard({
+  probe = null,
+}: {
+  probe?: typeof tauri.probeEndpointModels | null;
+} = {}) {
   let view!: ReturnType<typeof render>;
   await act(async () => {
     view = render(
       <MemoryRouter>
-        <OnboardingWizard desktop web={false} />
+        <OnboardingWizard desktop web={false} probe={probe} />
       </MemoryRouter>,
     );
   });
@@ -165,6 +186,200 @@ describe("the first-run wizard", () => {
     // The credential-store statement is the Settings one, verbatim.
     expect(screen.getByRole("dialog")).toHaveTextContent(/credential store/i);
     expect(screen.getByRole("dialog")).toHaveTextContent(/MEDAGENT_KEY/);
+  });
+
+  it("adds a custom endpoint, probing it with the key and never writing the key to the config", async () => {
+    const client = clientMock();
+    vi.spyOn(runtime, "getClient").mockReturnValue(client as never);
+    vi.mocked(tauri.storeProviderKey).mockResolvedValue("MEDAGENT_KEY_GLM");
+    const probe = vi.fn().mockResolvedValue({
+      baseUrl: "https://open.bigmodel.cn/api/paas/v4",
+      models: [{ id: "glm-4.5", context: 128000 }],
+    });
+    useRuntimeStore.setState({ loadCatalog: loadCatalogAfterEndpoint(client) } as never);
+    await renderWizard({ probe });
+    await screen.findByRole("dialog", { name: "Set up a model" });
+
+    fireEvent.click(screen.getByRole("button", { name: /custom endpoint/i }));
+    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "GLM" } });
+    fireEvent.change(screen.getByLabelText("Base URL"), {
+      target: { value: "https://open.bigmodel.cn/api/paas/v4" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+
+    // The key step is the same one the catalog providers use.
+    fireEvent.change(screen.getByLabelText("GLM API key"), { target: { value: "sk-glm-777" } });
+    fireEvent.click(screen.getByRole("button", { name: /save key/i }));
+
+    // Models were left blank, so the endpoint was asked with the key that was
+    // just typed — the one moment a probe can authenticate.
+    expect(await screen.findByText("glm-4.5")).toBeInTheDocument();
+    expect(probe).toHaveBeenCalledWith(
+      "https://open.bigmodel.cn/api/paas/v4",
+      "sk-glm-777",
+      "openai",
+    );
+    expect(tauri.storeProviderKey).toHaveBeenCalledWith("glm", "sk-glm-777");
+    expect(client.addCustomProvider).toHaveBeenCalledWith("glm", {
+      name: "GLM",
+      npm: "@ai-sdk/openai-compatible",
+      baseURL: "https://open.bigmodel.cn/api/paas/v4",
+      apiKey: "{env:MEDAGENT_KEY_GLM}",
+      models: ["glm-4.5"],
+      contexts: { "glm-4.5": 128000 },
+    });
+    // The config payload carries the reference and nothing else.
+    expect(JSON.stringify(client.addCustomProvider.mock.calls)).not.toContain("sk-glm-777");
+    expect(client.setProviderApiKey).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByText("glm-4.5").closest("button")!);
+    await waitFor(() =>
+      expect(useRuntimeStore.getState().setDefaultModel).toHaveBeenCalledWith(
+        "glm/glm-4.5",
+      ),
+    );
+    // The closing statement is still the Settings privacy sentence.
+    expect(screen.getByRole("dialog")).toHaveTextContent(/credential store/i);
+    expect(screen.getByRole("dialog")).toHaveTextContent(/MEDAGENT_KEY/);
+  });
+
+  it("takes model ids typed in the form without probing the endpoint", async () => {
+    const client = clientMock();
+    vi.spyOn(runtime, "getClient").mockReturnValue(client as never);
+    vi.mocked(tauri.storeProviderKey).mockResolvedValue("MEDAGENT_KEY_GLM");
+    const probe = vi.fn();
+    useRuntimeStore.setState({ loadCatalog: loadCatalogAfterEndpoint(client) } as never);
+    await renderWizard({ probe });
+    await screen.findByRole("dialog", { name: "Set up a model" });
+
+    fireEvent.click(screen.getByRole("button", { name: /custom endpoint/i }));
+    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "GLM" } });
+    fireEvent.change(screen.getByLabelText("Base URL"), {
+      target: { value: "https://open.bigmodel.cn/api/paas/v4" },
+    });
+    fireEvent.change(screen.getByLabelText("Models"), {
+      target: { value: "glm-4.5, glm-4.5-air" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+    fireEvent.change(screen.getByLabelText("GLM API key"), { target: { value: "sk-glm-777" } });
+    fireEvent.click(screen.getByRole("button", { name: /save key/i }));
+
+    await screen.findByText("glm-4.5");
+    expect(probe).not.toHaveBeenCalled();
+    expect(client.addCustomProvider).toHaveBeenCalledWith(
+      "glm",
+      expect.objectContaining({ models: ["glm-4.5", "glm-4.5-air"], contexts: {} }),
+    );
+  });
+
+  it("asks the probe in the API dialect the form selected", async () => {
+    const client = clientMock();
+    vi.spyOn(runtime, "getClient").mockReturnValue(client as never);
+    vi.mocked(tauri.storeProviderKey).mockResolvedValue("MEDAGENT_KEY_GLM");
+    const probe = vi.fn().mockResolvedValue({
+      baseUrl: "https://api.anthropic.test/v1",
+      models: [{ id: "claude-sonnet" }],
+    });
+    useRuntimeStore.setState({
+      loadCatalog: vi.fn(async () => {
+        if (client.addCustomProvider.mock.calls.length > 0) {
+          useRuntimeStore.setState({
+            providers: [
+              zen,
+              {
+                id: "claude-relay",
+                name: "Claude relay",
+                models: [{ id: "claude-sonnet", name: "claude-sonnet" }],
+              },
+            ],
+          });
+        }
+      }),
+    } as never);
+    await renderWizard({ probe });
+    await screen.findByRole("dialog", { name: "Set up a model" });
+
+    fireEvent.click(screen.getByRole("button", { name: /custom endpoint/i }));
+    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Claude relay" } });
+    fireEvent.change(screen.getByLabelText("API style"), {
+      target: { value: "@ai-sdk/anthropic" },
+    });
+    fireEvent.change(screen.getByLabelText("Base URL"), {
+      target: { value: "https://api.anthropic.test/v1" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+    fireEvent.change(screen.getByLabelText("Claude relay API key"), {
+      target: { value: "sk-ant-1" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /save key/i }));
+
+    await screen.findByText("claude-sonnet");
+    expect(probe).toHaveBeenCalledWith("https://api.anthropic.test/v1", "sk-ant-1", "anthropic");
+    expect(client.addCustomProvider).toHaveBeenCalledWith(
+      "claude-relay",
+      expect.objectContaining({ npm: "@ai-sdk/anthropic" }),
+    );
+  });
+
+  it("refuses a custom endpoint it could not dial", async () => {
+    const client = clientMock();
+    vi.spyOn(runtime, "getClient").mockReturnValue(client as never);
+    await renderWizard();
+    await screen.findByRole("dialog", { name: "Set up a model" });
+
+    fireEvent.click(screen.getByRole("button", { name: /custom endpoint/i }));
+    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "GLM" } });
+    fireEvent.change(screen.getByLabelText("Base URL"), { target: { value: "open.bigmodel.cn" } });
+    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+
+    expect(screen.getByText(/starts with http/)).toBeInTheDocument();
+    expect(screen.queryByLabelText(/API key/)).not.toBeInTheDocument();
+    expect(client.addCustomProvider).not.toHaveBeenCalled();
+  });
+
+  it("leaves both the store and the config untouched when the probe finds nothing", async () => {
+    const client = clientMock();
+    vi.spyOn(runtime, "getClient").mockReturnValue(client as never);
+    const probe = vi.fn().mockRejectedValue(new Error("401 Unauthorized"));
+    await renderWizard({ probe });
+    await screen.findByRole("dialog", { name: "Set up a model" });
+
+    fireEvent.click(screen.getByRole("button", { name: /custom endpoint/i }));
+    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "GLM" } });
+    fireEvent.change(screen.getByLabelText("Base URL"), {
+      target: { value: "https://open.bigmodel.cn/api/paas/v4" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+    fireEvent.change(screen.getByLabelText("GLM API key"), { target: { value: "sk-glm-777" } });
+    fireEvent.click(screen.getByRole("button", { name: /save key/i }));
+
+    // The probe ran before anything was stored, so a refused key is not left
+    // behind and no provider is half-configured.
+    expect(
+      await screen.findByText(/Could not ask the endpoint for its models/),
+    ).toBeInTheDocument();
+    expect(tauri.storeProviderKey).not.toHaveBeenCalled();
+    expect(client.addCustomProvider).not.toHaveBeenCalled();
+  });
+
+  it("goes back from the key step to the custom form it was filling in", async () => {
+    const client = clientMock();
+    vi.spyOn(runtime, "getClient").mockReturnValue(client as never);
+    await renderWizard();
+    await screen.findByRole("dialog", { name: "Set up a model" });
+
+    fireEvent.click(screen.getByRole("button", { name: /custom endpoint/i }));
+    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "GLM" } });
+    fireEvent.change(screen.getByLabelText("Base URL"), {
+      target: { value: "https://open.bigmodel.cn/api/paas/v4" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+    fireEvent.click(screen.getByRole("button", { name: /back/i }));
+
+    expect(screen.getByLabelText("Name")).toHaveValue("GLM");
+    expect(screen.getByLabelText("Base URL")).toHaveValue(
+      "https://open.bigmodel.cn/api/paas/v4",
+    );
   });
 
   it("runs the test turn, reads the answer, and finishes into the conversation", async () => {
