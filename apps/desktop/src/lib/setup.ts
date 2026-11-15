@@ -19,6 +19,9 @@ import {
   getProxySetting,
   removeConfigEntry,
   openExternal,
+  isTauri,
+  restartRuntime,
+  storeProviderKey,
 } from "./tauri";
 import { SCIENCE_CONNECTORS, connectorConfig } from "./scienceConnectors";
 import { BROWSER_MCP_ID, buildBrowserMcpConfig } from "./browser";
@@ -136,7 +139,21 @@ export const useSetupStore = create<SetupState>((set, get) => ({
       } else {
         toast.success(`Setting up ${c.label} — first run downloads a managed Python, please wait…`);
         const python = await setupScienceMcp(c.pkg);
-        await getClient()!.addMcpServer(c.id, connectorConfig(c, python, apiKey));
+        // A connector key goes into the OS credential store like a provider
+        // key: the config keeps `{env:…}` and the runtime injects the value
+        // when it spawns the sidecar, so no key sits in opencode.json.
+        let key = apiKey;
+        let storedVar: string | undefined;
+        if (c.apiKeyEnv && apiKey?.trim() && isTauri) {
+          storedVar = await storeProviderKey(c.apiKeyEnv, apiKey.trim());
+          key = `{env:${storedVar}}`;
+        }
+        await getClient()!.addMcpServer(c.id, connectorConfig(c, python, key));
+        if (storedVar) {
+          // The variable reaches the sidecar only when it is spawned again.
+          await restartRuntime();
+          await useRuntimeStore.getState().connectRetry();
+        }
       }
       toast.success(`${c.label} enabled — the agent can now use it from chat.`);
       await useRuntimeStore.getState().loadCatalog();

@@ -553,7 +553,25 @@ function SettingsPageContent() {
       if (providerID === "amazon-bedrock") {
         await getClient()!.setProviderRegion(providerID, bedrockRegion.trim());
       }
-      await getClient()!.setProviderApiKey(providerID, keyInput.trim());
+      const key = keyInput.trim();
+      if (isTauri) {
+        // The key goes into the OS credential store; the config only names the
+        // variable (`{env:MEDAGENT_KEY_<ID>}`), which the runtime resolves from
+        // the sidecar's environment. A config apiKey beats OpenCode's own auth
+        // store (measured against the pinned runtime), so the reference is what
+        // takes effect — and the plaintext entry the old flow left in auth.json
+        // goes, rather than surviving on disk beside it.
+        const envVar = await storeProviderKey(providerID, key);
+        await getClient()!.setProviderApiKeyRef(providerID, `{env:${envVar}}`);
+        await getClient()!.removeProviderAuth(providerID).catch(() => undefined);
+        // The variable reaches the sidecar only when it is spawned again.
+        await restartRuntime();
+        await useRuntimeStore.getState().connectRetry();
+      } else {
+        // Plain browser dev has no credential store; the gateway web client
+        // refuses config writes long before this (`providers.webHint`).
+        await getClient()!.setProviderApiKey(providerID, key);
+      }
       cancelOAuth(); // a pending browser login for this panel is now moot
       setKeyInput("");
       setConnectQuery("");
@@ -718,7 +736,16 @@ function SettingsPageContent() {
         // The key this form stored in the OS credential store goes with it.
         await forgetProviderKey(providerID).catch(() => undefined);
       } else {
-        await getClient()!.removeProviderAuth(providerID);
+        // A key saved through the key panel is a config reference now, with the
+        // value in the OS credential store. Disconnecting means removing both:
+        // the auth store entry the old flow wrote, the stored key, and the
+        // config entry that points the runtime at it (which restarts the
+        // sidecar). Each step is best-effort — an OAuth-only provider has none
+        // of them.
+        await getClient()!.removeProviderAuth(providerID).catch(() => undefined);
+        await forgetProviderKey(providerID).catch(() => undefined);
+        await removeConfigEntry("provider", providerID).catch(() => undefined);
+        await useRuntimeStore.getState().connectRetry();
       }
       try {
         const provs = await getClient()!.listProviders();
@@ -884,6 +911,12 @@ function SettingsPageContent() {
     run(t("toast.couldNotRemoveMcp"), async () => {
       await removeConfigEntry("mcp", name);
       await useRuntimeStore.getState().connectRetry();
+      // A science connector's key lives in the OS credential store; removing
+      // the server must not leave that entry behind.
+      const connector = SCIENCE_CONNECTORS.find((c) => c.id === name);
+      if (connector && connector.type !== "remote" && connector.apiKeyEnv) {
+        await forgetProviderKey(connector.apiKeyEnv).catch(() => undefined);
+      }
       toast.success(t("toast.mcpRemoved", { name }));
     });
 

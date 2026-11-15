@@ -1040,6 +1040,26 @@ export class OpenCodeClient extends BaseAgentRuntime implements AgentRuntime {
     if (!res.ok) throw await this.apiError(res, "Failed to add the provider");
   }
 
+  /**
+   * Point a provider at a key held somewhere else — the OS credential store —
+   * by writing `provider.<id>.options.apiKey = ref` (`{env:MEDAGENT_KEY_…}`).
+   * The runtime resolves the reference from its environment; the file keeps the
+   * reference, never the key (measured: `PATCH /global/config` writes the
+   * reference back verbatim). A config `options.apiKey` beats OpenCode's own
+   * auth store, so this is what makes a saved key take effect.
+   */
+  async setProviderApiKeyRef(providerID: string, ref: string): Promise<void> {
+    const res = await this.fetchImpl(`${this.baseUrl}/global/config`, {
+      method: "PATCH",
+      headers: this.headers(true),
+      body: JSON.stringify({
+        provider: { [providerID]: { options: { apiKey: ref } } },
+      }),
+    });
+    if (!res.ok) throw await this.apiError(res, "Failed to save the key");
+    await this.disposeInstance();
+  }
+
   /** Context limits already configured for a custom provider's models, keyed by
    *  model id. Best-effort: an unreadable config just means "no limits set". */
   private async customProviderModels(id: string): Promise<Record<string, CustomProviderModelConfig>> {

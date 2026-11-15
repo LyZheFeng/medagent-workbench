@@ -46,6 +46,15 @@ pub fn is_reference(value: &str) -> bool {
     v.len() > 2 && v.starts_with('{') && v.ends_with('}')
 }
 
+/// The credential id a `{env:VAR}` reference stands for, when the id can be
+/// recovered from the name. True for connector variables, which are already
+/// valid identifiers (`GEOMCP_EMAIL` → id `GEOMCP_EMAIL`); None when the name
+/// does not round-trip, so nothing guesses at the wrong entry.
+pub fn id_for_var(var: &str) -> Option<String> {
+    let id = var.strip_prefix(ENV_PREFIX)?;
+    (!id.is_empty() && env_var(id) == var).then(|| id.to_string())
+}
+
 /// Credential-store name for one provider.
 fn target(provider: &str) -> String {
     format!("{SERVICE}/{provider}")
@@ -387,6 +396,22 @@ mod tests {
         assert!(!is_reference(""));
         assert!(!is_reference("{}"));
         assert!(!is_reference("{unterminated"));
+    }
+
+    #[test]
+    fn a_variable_name_recovers_its_credential_id_only_when_it_round_trips() {
+        assert_eq!(
+            id_for_var("MEDAGENT_KEY_GEOMCP_EMAIL").as_deref(),
+            Some("GEOMCP_EMAIL")
+        );
+        assert_eq!(
+            id_for_var("MEDAGENT_KEY_MEDAGENT_GLM").as_deref(),
+            Some("MEDAGENT_GLM")
+        );
+        // Not ours, and not round-trippable: nothing to look up.
+        assert_eq!(id_for_var("OPENAI_API_KEY"), None);
+        assert_eq!(id_for_var("MEDAGENT_KEY_"), None);
+        assert_eq!(id_for_var("MEDAGENT_KEY_a-b"), None);
     }
 
     #[test]

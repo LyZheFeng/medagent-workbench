@@ -639,6 +639,135 @@ pub fn provider_env_refs(existing: &str) -> Vec<(String, String)> {
         .unwrap_or_default()
 }
 
+/// Point `provider.<id>.options.apiKey` at its env reference, creating the
+/// provider entry when it is absent. A catalog id needs nothing else — its
+/// models come from models.dev, and (measured against the pinned runtime) a
+/// config `options.apiKey` beats OpenCode's own auth store, so once this lands
+/// the key in the OS credential store is the one in use.
+///
+/// Returns None when the config already says exactly that.
+pub fn set_api_key_ref(existing: &str, provider: &str) -> Option<String> {
+    let mut root = read_config(existing)?;
+    let obj = root.as_object_mut()?;
+    let providers = obj.entry("provider").or_insert_with(|| json!({}));
+    if !providers.is_object() {
+        *providers = json!({});
+    }
+    let entry = providers
+        .as_object_mut()?
+        .entry(provider)
+        .or_insert_with(|| json!({}));
+    if !entry.is_object() {
+        *entry = json!({});
+    }
+    let options = entry
+        .as_object_mut()?
+        .entry("options")
+        .or_insert_with(|| json!({}));
+    if !options.is_object() {
+        *options = json!({});
+    }
+    let want = crate::secrets::placeholder(provider);
+    let oobj = options.as_object_mut()?;
+    if oobj.get("apiKey").and_then(|v| v.as_str()) == Some(want.as_str()) {
+        return None;
+    }
+    oobj.insert("apiKey".to_string(), json!(want));
+    serde_json::to_string_pretty(&root).ok()
+}
+
+/// Literal connector keys under `mcp.<server>.environment`, limited to the
+/// variables this app knows carry a credential: `(server, variable, key)`.
+/// Everything else in an environment block is the user's own configuration and
+/// is never touched.
+pub fn mcp_env_literals(existing: &str, known: &[&str]) -> Vec<(String, String, String)> {
+    let Some(root) = read_config(existing) else {
+        return Vec::new();
+    };
+    let Some(servers) = root.get("mcp").and_then(|m| m.as_object()) else {
+        return Vec::new();
+    };
+    let mut out = Vec::new();
+    for (server, entry) in servers {
+        let Some(env) = entry.get("environment").and_then(|e| e.as_object()) else {
+            continue;
+        };
+        for var in known {
+            let Some(value) = env.get(*var).and_then(|v| v.as_str()) else {
+                continue;
+            };
+            let value = value.trim();
+            if value.is_empty() || crate::secrets::is_reference(value) {
+                continue;
+            }
+            out.push((server.clone(), (*var).to_string(), value.to_string()));
+        }
+    }
+    out
+}
+
+/// Rewrite those literal connector keys as `{env:MEDAGENT_KEY_<VAR>}`.
+/// Returns None when there is nothing to change.
+pub fn migrate_mcp_env(existing: &str, known: &[&str]) -> Option<String> {
+    let literal = mcp_env_literals(existing, known);
+    if literal.is_empty() {
+        return None;
+    }
+    let mut root = read_config(existing)?;
+    let servers = root.get_mut("mcp")?.as_object_mut()?;
+    for (server, var, _) in &literal {
+        let Some(env) = servers
+            .get_mut(server)
+            .and_then(|e| e.get_mut("environment"))
+            .and_then(|e| e.as_object_mut())
+        else {
+            continue;
+        };
+        env.insert(
+            var.clone(),
+            json!(crate::secrets::placeholder(var)),
+        );
+    }
+    serde_json::to_string_pretty(&root).ok()
+}
+
+/// Every `{env:…}` reference under `mcp.*.environment`: `(variable, id)`.
+/// Only references whose id can be recovered are returned — those are the ones
+/// the sidecar can actually be handed a value for.
+pub fn mcp_env_refs(existing: &str) -> Vec<(String, String)> {
+    let Some(root) = read_config(existing) else {
+        return Vec::new();
+    };
+    let Some(servers) = root.get("mcp").and_then(|m| m.as_object()) else {
+        return Vec::new();
+    };
+    let mut out = Vec::new();
+    for entry in servers.values() {
+        let Some(env) = entry.get("environment").and_then(|e| e.as_object()) else {
+            continue;
+        };
+        for value in env.values() {
+            let Some(value) = value.as_str() else {
+                continue;
+            };
+            let Some(var) = value
+                .trim()
+                .strip_prefix("{env:")
+                .and_then(|v| v.strip_suffix('}'))
+            else {
+                continue;
+            };
+            let var = var.trim();
+            if let Some(id) = crate::secrets::id_for_var(var) {
+                out.push((var.to_string(), id));
+            }
+        }
+    }
+    out.sort();
+    out.dedup();
+    out
+}
+
 /// Point the config's `plugin` array at the deployed goal plugin, replacing
 /// any stale entry from a previous install location (our entries are
 /// recognized by the `goal-plugin.server.js` file name). Returns None when the
@@ -1491,6 +1620,89 @@ mod tests {
             )]
         );
         assert!(provider_env_refs("{}").is_empty());
+    }
+
+    #[test]
+    fn an_api_key_reference_is_added_without_disturbing_the_entry() {
+        // A catalog provider that already carries an endpoint override: the
+        // reference must join it, not replace the entry.
+        let existing = r#"{"provider":{"anthropic":{"options":{"baseURL":"https://x"}}}}"#;
+        let out = set_api_key_ref(existing, "anthropic").expect("something changed");
+        let v: Value = serde_json::from_str(&out).unwrap();
+        assert_eq!(
+            v["provider"]["anthropic"]["options"]["apiKey"],
+            "{env:MEDAGENT_KEY_ANTHROPIC}"
+        );
+        assert_eq!(v["provider"]["anthropic"]["options"]["baseURL"], "https://x");
+        // A provider with no entry at all is created (a catalog id needs no
+        // models map: they come from the catalog).
+        let created = set_api_key_ref("{}", "openai").expect("created");
+        let v: Value = serde_json::from_str(&created).unwrap();
+        assert_eq!(
+            v["provider"]["openai"]["options"]["apiKey"],
+            "{env:MEDAGENT_KEY_OPENAI}"
+        );
+        // Already exactly right: no rewrite.
+        assert!(set_api_key_ref(&out, "anthropic").is_none());
+        // A literal key is replaced rather than kept beside the reference.
+        let literal = r#"{"provider":{"kny":{"options":{"apiKey":"sk-live"}}}}"#;
+        let migrated = set_api_key_ref(literal, "kny").expect("replaced");
+        assert!(!migrated.contains("sk-live"));
+        assert!(migrated.contains("{env:MEDAGENT_KEY_KNY}"));
+    }
+
+    #[test]
+    fn connector_keys_under_mcp_environment_move_to_the_store_too() {
+        let config = r#"{"mcp":{
+            "geo":{"type":"local","command":["python"],"environment":{
+                "GEOMCP_EMAIL":"researcher@example.org","PATH":"/usr/bin"
+            }},
+            "already":{"type":"local","command":["x"],"environment":{
+                "GEOMCP_EMAIL":"{env:MEDAGENT_KEY_GEOMCP_EMAIL}"
+            }}
+        }}"#;
+        let known = ["GEOMCP_EMAIL"];
+        let mut found = mcp_env_literals(config, &known);
+        found.sort();
+        assert_eq!(
+            found,
+            vec![(
+                "geo".to_string(),
+                "GEOMCP_EMAIL".to_string(),
+                "researcher@example.org".to_string()
+            )]
+        );
+
+        let out = migrate_mcp_env(config, &known).expect("something changed");
+        let v: Value = serde_json::from_str(&out).unwrap();
+        assert_eq!(
+            v["mcp"]["geo"]["environment"]["GEOMCP_EMAIL"],
+            "{env:MEDAGENT_KEY_GEOMCP_EMAIL}"
+        );
+        // Unrelated environment entries and the connector's command survive.
+        assert_eq!(v["mcp"]["geo"]["environment"]["PATH"], "/usr/bin");
+        assert_eq!(v["mcp"]["geo"]["command"][0], "python");
+        assert!(!out.contains("researcher@example.org"));
+        // Idempotent.
+        assert!(migrate_mcp_env(&out, &known).is_none());
+        // A different allowlist leaves the entry alone.
+        assert!(migrate_mcp_env(config, &["OTHER_KEY"]).is_none());
+    }
+
+    #[test]
+    fn the_sidecar_env_pairs_cover_connector_keys() {
+        let config = r#"{"mcp":{"geo":{"environment":{
+            "GEOMCP_EMAIL":"{env:MEDAGENT_KEY_GEOMCP_EMAIL}",
+            "NOT_OURS":"{env:SOME_OTHER_VAR}"
+        }}}}"#;
+        assert_eq!(
+            mcp_env_refs(config),
+            vec![(
+                "MEDAGENT_KEY_GEOMCP_EMAIL".to_string(),
+                "GEOMCP_EMAIL".to_string()
+            )]
+        );
+        assert!(mcp_env_refs("{}").is_empty());
     }
 
     #[test]

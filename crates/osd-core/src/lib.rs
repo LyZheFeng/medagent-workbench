@@ -12,6 +12,7 @@
 pub mod agent_accounts;
 pub mod artifact_file;
 pub mod audit;
+pub mod auth_store;
 pub mod browser_mcp_proxy;
 pub mod debug_log;
 pub mod env;

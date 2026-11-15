@@ -1758,6 +1758,15 @@ fn spawn_sidecar(env: &Env, port: u16, generation: u64) -> Result<Child, String>
     for warning in migrate_plaintext_provider_keys(env) {
         crate::debug_log::append(env, &format!("[provider-key] {warning}"));
     }
+    // …and the same for the keys OpenCode's own auth store still holds for
+    // built-in providers (the Settings key panel used to write them there).
+    for warning in migrate_auth_store_keys(env) {
+        crate::debug_log::append(env, &format!("[provider-key] {warning}"));
+    }
+    // Connector credentials (`mcp.*.environment`) follow the same route.
+    for warning in migrate_mcp_connector_keys(env, CONNECTOR_KEY_VARS) {
+        crate::debug_log::append(env, &format!("[provider-key] {warning}"));
+    }
     let cfg_file = effective_config_file(env)?;
     // Safety default (AGENTS.md non-negotiable): on first run, seed the
     // "approve" permission mode so dangerous shell commands prompt for
@@ -1944,7 +1953,7 @@ fn spawn_sidecar(env: &Env, port: u16, generation: u64) -> Result<Child, String>
     // with no stored key simply gets no variable — the runtime then sends an
     // unauthenticated request, which is a legible auth error rather than a
     // secret on disk.
-    let (key_env, key_warnings) = provider_key_env(env);
+    let (key_env, key_warnings) = sidecar_key_env(env);
     for warning in &key_warnings {
         crate::debug_log::append(env, &format!("[provider-key] {warning}"));
     }
@@ -3791,7 +3800,7 @@ mod tests {
             Some("sk-literal-123")
         );
 
-        let (pairs, warnings) = super::provider_key_env(&env);
+        let (pairs, warnings) = super::sidecar_key_env(&env);
         assert!(warnings.is_empty(), "{warnings:?}");
         assert_eq!(
             pairs,
@@ -3804,6 +3813,71 @@ mod tests {
         // Idempotent: a second start does not rewrite (and so does not restart
         // the sidecar for nothing).
         assert!(crate::opencode_config::migrate_provider_keys(&after).is_none());
+
+        crate::secrets::forget(&provider).unwrap();
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    /// A built-in provider's key saved by the Settings key panel lived in
+/// OpenCode's own auth store, in the clear. It moves to the credential store,
+/// the config gains the reference, and the plaintext entry goes — while an
+/// OAuth login beside it survives untouched.
+    #[test]
+    fn a_key_in_opencodes_auth_store_moves_to_the_credential_store() {
+        let provider = format!("osd-authstore-{}", std::process::id());
+        if let Err(e) = crate::secrets::store(&provider, "probe") {
+            eprintln!("skipped: the OS credential store is unavailable: {e}");
+            return;
+        }
+        crate::secrets::forget(&provider).unwrap();
+
+        let (env, dir) = temp_env("auth-store-keys");
+        let cfg = super::opencode_config_file(&env).unwrap();
+        fs::create_dir_all(cfg.parent().unwrap()).unwrap();
+        // A catalog-style entry with an endpoint override and no key yet.
+        let config = r#"{"provider":{"PROVIDER":{"options":{"baseURL":"http://127.0.0.1:9/v1"}}}}"#
+            .replace("PROVIDER", &provider);
+        fs::write(&cfg, config).unwrap();
+
+        let auth = super::xdg_data_home(&env)
+            .unwrap()
+            .join("opencode")
+            .join("auth.json");
+        fs::create_dir_all(auth.parent().unwrap()).unwrap();
+        let store = format!(
+            r#"{{"{provider}":{{"type":"api","key":"sk-from-auth"}},"other":{{"type":"oauth","access":"a","refresh":"r","expires":1}}}}"#
+        );
+        fs::write(&auth, store).unwrap();
+
+        super::migrate_auth_store_keys(&env);
+
+        let after = fs::read_to_string(&cfg).unwrap();
+        assert!(
+            after.contains(&crate::secrets::placeholder(&provider)),
+            "{after}"
+        );
+        assert_eq!(
+            crate::secrets::load(&provider).unwrap().as_deref(),
+            Some("sk-from-auth")
+        );
+        let remaining: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(&auth).unwrap()).unwrap();
+        assert!(remaining.get(&provider).is_none(), "{remaining}");
+        assert_eq!(remaining["other"]["type"], "oauth", "an OAuth login must survive");
+
+        // The sidecar's environment now carries it.
+        let (pairs, warnings) = super::sidecar_key_env(&env);
+        assert!(warnings.is_empty(), "{warnings:?}");
+        assert_eq!(
+            pairs,
+            vec![(
+                crate::secrets::env_var(&provider),
+                "sk-from-auth".to_string()
+            )]
+        );
+
+        // Idempotent: no api entries left, so nothing is rewritten.
+        assert!(super::migrate_auth_store_keys(&env).is_empty());
 
         crate::secrets::forget(&provider).unwrap();
         let _ = fs::remove_dir_all(&dir);
@@ -3823,12 +3897,81 @@ mod tests {
             .replace("VAR", &crate::secrets::env_var(&provider));
         fs::write(&cfg, config).unwrap();
 
-        let (pairs, warnings) = super::provider_key_env(&env);
+        let (pairs, warnings) = super::sidecar_key_env(&env);
         assert!(pairs.is_empty(), "{pairs:?}");
         assert_eq!(warnings.len(), 1, "{warnings:?}");
         assert!(warnings[0].contains(&provider), "{warnings:?}");
 
         let _ = fs::remove_dir_all(&dir);
+    }
+
+    /// Connector credentials under `mcp.*.environment` follow the same route:
+    /// literal → OS store, config keeps the reference, sidecar gets the value.
+    #[test]
+    fn a_connector_key_in_the_config_moves_to_the_store() {
+        let var = format!("OSD_TEST_CONNECTOR_{}", std::process::id());
+        if let Err(e) = crate::secrets::store(&var, "probe") {
+            eprintln!("skipped: the OS credential store is unavailable: {e}");
+            return;
+        }
+        crate::secrets::forget(&var).unwrap();
+
+        let (env, dir) = temp_env("connector-keys");
+        let cfg = super::opencode_config_file(&env).unwrap();
+        fs::create_dir_all(cfg.parent().unwrap()).unwrap();
+        let config = format!(
+            r#"{{"mcp":{{"geo":{{"type":"local","command":["python"],"environment":{{"{var}":"secret-conn-123","PATH":"/usr/bin"}}}}}}}}"#
+        );
+        fs::write(&cfg, config).unwrap();
+
+        super::migrate_mcp_connector_keys(&env, &[var.as_str()]);
+
+        let after = fs::read_to_string(&cfg).unwrap();
+        assert!(!after.contains("secret-conn-123"), "{after}");
+        assert!(after.contains(&crate::secrets::placeholder(&var)), "{after}");
+        assert_eq!(
+            crate::secrets::load(&var).unwrap().as_deref(),
+            Some("secret-conn-123")
+        );
+        let (pairs, warnings) = super::sidecar_key_env(&env);
+        assert!(warnings.is_empty(), "{warnings:?}");
+        assert_eq!(
+            pairs,
+            vec![(
+                crate::secrets::env_var(&var),
+                "secret-conn-123".to_string()
+            )]
+        );
+
+        crate::secrets::forget(&var).unwrap();
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    /// `CONNECTOR_KEY_VARS` is a copy of the frontend catalog; read the real
+    /// file so the copy cannot drift and silently stop migrating a connector.
+    #[test]
+    fn every_connector_key_variable_is_in_the_allowlist() {
+        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../apps/desktop/src/lib/scienceConnectors.ts");
+        let Ok(text) = fs::read_to_string(&path) else {
+            eprintln!("skipped: {} is not in this checkout", path.display());
+            return;
+        };
+        let mut wanted = Vec::new();
+        for line in text.lines() {
+            if let Some(rest) = line.split("apiKeyEnv:").nth(1) {
+                if let Some(value) = rest.split('"').nth(1) {
+                    wanted.push(value.to_string());
+                }
+            }
+        }
+        assert!(!wanted.is_empty(), "the connector catalog declares no apiKeyEnv");
+        for name in wanted {
+            assert!(
+                super::CONNECTOR_KEY_VARS.contains(&name.as_str()),
+                "connector key {name} is missing from CONNECTOR_KEY_VARS — a saved key would stay in the config"
+            );
+        }
     }
 }
 
@@ -4170,6 +4313,102 @@ pub fn set_mirror_setting(env: &Env, pypi: String, python: String) -> Result<(),
     std::fs::write(&path, lines.join("\n")).map_err(|e| e.to_string())
 }
 
+/// Move the keys OpenCode keeps in its own auth store (`xdg-data/opencode/
+/// auth.json`, measured plaintext for `{"type":"api", …}` entries) into the OS
+/// credential store, pointing the config at them.
+///
+/// Order is load-bearing: the config reference is written FIRST, because a
+/// config `options.apiKey` beats the auth store and the key must stay usable
+/// throughout. Only after that is the plaintext entry removed — a store that
+/// refuses a key leaves both files exactly as they were.
+///
+/// OAuth entries are never touched: those are tokens the runtime refreshes
+/// itself, and moving or dropping one would sign the provider out.
+fn migrate_auth_store_keys(env: &Env) -> Vec<String> {
+    let mut warnings = Vec::new();
+    let Ok(data_dir) = xdg_data_home(env) else {
+        return warnings;
+    };
+    let auth_path = data_dir.join("opencode").join("auth.json");
+    let Ok(auth_text) = std::fs::read_to_string(&auth_path) else {
+        return warnings; // no store yet — nothing to migrate
+    };
+    let keys = crate::auth_store::api_keys(&auth_text);
+    if keys.is_empty() {
+        return warnings;
+    }
+    let Ok(cfg_path) = effective_config_file(env) else {
+        warnings.push("could not locate the config to reference OpenCode's stored keys".into());
+        return warnings;
+    };
+    let mut config = std::fs::read_to_string(&cfg_path).unwrap_or_default();
+    // A literal key in the config is the one the runtime is using (config beats
+    // the auth store). Leave that provider to the config migration, which
+    // retries on the next start if the store refused it.
+    let literal: Vec<String> = crate::opencode_config::plaintext_api_keys(&config)
+        .into_iter()
+        .map(|(id, _)| id)
+        .collect();
+
+    let mut moved = Vec::new();
+    for (provider, key) in &keys {
+        if literal.iter().any(|id| id == provider) {
+            warnings.push(format!(
+                "{provider} has a literal key in the config; left its auth-store key alone"
+            ));
+            continue;
+        }
+        // The config may already reference a key it got from the credential
+        // store; that value is the active one, so an entry left in auth.json is
+        // shadowed. Keep what is in the store and just drop the plaintext copy.
+        let already_stored = matches!(crate::secrets::load(provider), Ok(Some(_)));
+        if !already_stored {
+            if let Err(e) = crate::secrets::store(provider, key) {
+                warnings.push(format!(
+                    "left the {provider} key in OpenCode's auth store: {e}"
+                ));
+                continue;
+            }
+        }
+        moved.push(provider.clone());
+    }
+    if moved.is_empty() {
+        return warnings;
+    }
+
+    for provider in &moved {
+        if let Some(next) = crate::opencode_config::set_api_key_ref(&config, provider) {
+            config = next;
+        }
+    }
+    if let Err(e) = write_atomic(&cfg_path, &config) {
+        warnings.push(format!(
+            "the keys were stored but the config was not pointed at them: {e}"
+        ));
+        return warnings;
+    }
+    tighten_private(&cfg_path);
+
+    if let Some(stripped) = crate::auth_store::without_api_keys(&auth_text) {
+        match write_atomic(&auth_path, &stripped) {
+            Ok(()) => {
+                tighten_private(&auth_path);
+                crate::debug_log::append(
+                    env,
+                    &format!(
+                        "[provider-key] moved {} key(s) out of OpenCode's auth store into the OS credential store",
+                        moved.len()
+                    ),
+                );
+            }
+            Err(e) => warnings.push(format!(
+                "the keys are stored and referenced, but auth.json still lists them: {e}"
+            )),
+        }
+    }
+    warnings
+}
+
 /// Move every literal `provider.*.options.apiKey` in the config into the OS
 /// credential store, then replace it with its `{env:…}` reference.
 ///
@@ -4227,27 +4466,99 @@ fn migrate_plaintext_provider_keys(env: &Env) -> Vec<String> {
 /// A variable already present in this process's environment is left alone (the
 /// sidecar inherits it) — that is how a container or a systemd unit supplies a
 /// key without any store at all.
-fn provider_key_env(env: &Env) -> (Vec<(String, String)>, Vec<String>) {
+fn sidecar_key_env(env: &Env) -> (Vec<(String, String)>, Vec<String>) {
     let mut out = Vec::new();
     let mut warnings = Vec::new();
+    let mut seen = std::collections::HashSet::new();
     let existing = match effective_config_file(env) {
         Ok(path) => std::fs::read_to_string(path).unwrap_or_default(),
         Err(_) => String::new(),
     };
     for (provider, var) in crate::opencode_config::provider_env_refs(&existing) {
-        if std::env::var_os(&var).is_some() {
-            continue;
-        }
-        match crate::secrets::load(&provider) {
-            Ok(Some(key)) => out.push((var, key)),
-            Ok(None) => warnings.push(format!(
-                "no stored key for `{provider}` (the config expects {var}): set it again in \
-                 Settings → Providers, or export {var} before starting"
-            )),
-            Err(e) => warnings.push(format!("could not read the stored key for `{provider}`: {e}")),
-        }
+        lookup_key(var, &provider, &mut out, &mut warnings, &mut seen);
+    }
+    // Connector credentials live under `mcp.*.environment`; their id is the
+    // variable name the server reads (`GEOMCP_EMAIL`).
+    for (var, id) in crate::opencode_config::mcp_env_refs(&existing) {
+        lookup_key(var, &id, &mut out, &mut warnings, &mut seen);
     }
     (out, warnings)
+}
+
+fn lookup_key(
+    var: String,
+    id: &str,
+    out: &mut Vec<(String, String)>,
+    warnings: &mut Vec<String>,
+    seen: &mut std::collections::HashSet<String>,
+) {
+    if !seen.insert(var.clone()) {
+        return;
+    }
+    if std::env::var_os(&var).is_some() {
+        return; // this process's environment already supplies it
+    }
+    match crate::secrets::load(id) {
+        Ok(Some(key)) => out.push((var, key)),
+        Ok(None) => warnings.push(format!(
+            "no stored key for `{id}` (the config expects {var}): save it again in Settings, \
+             or export {var} before starting"
+        )),
+        Err(e) => warnings.push(format!("could not read the stored key for `{id}`: {e}")),
+    }
+}
+
+/// Connector environment variables this app treats as credentials. The catalog
+/// itself lives in the frontend (`apps/desktop/src/lib/scienceConnectors.ts`,
+/// field `apiKeyEnv`); the last test in this module reads that file and fails
+/// when the two lists drift, so this copy cannot go stale silently.
+const CONNECTOR_KEY_VARS: &[&str] = &["GEOMCP_EMAIL"];
+
+/// Move literal connector keys out of `mcp.*.environment` and into the OS
+/// credential store, leaving `{env:…}` references behind. All-or-nothing, like
+/// the provider migration: a store that refuses a key leaves the config alone.
+fn migrate_mcp_connector_keys(env: &Env, known: &[&str]) -> Vec<String> {
+    let mut warnings = Vec::new();
+    let path = match effective_config_file(env) {
+        Ok(p) => p,
+        Err(e) => {
+            warnings.push(format!("could not locate the config to migrate: {e}"));
+            return warnings;
+        }
+    };
+    let existing = std::fs::read_to_string(&path).unwrap_or_default();
+    let literal = crate::opencode_config::mcp_env_literals(&existing, known);
+    if literal.is_empty() {
+        return warnings;
+    }
+    let mut failed = false;
+    for (_, var, key) in &literal {
+        if let Err(e) = crate::secrets::store(var, key) {
+            failed = true;
+            warnings.push(format!("left the {var} connector key in the config: {e}"));
+        }
+    }
+    if failed {
+        return warnings;
+    }
+    if let Some(migrated) = crate::opencode_config::migrate_mcp_env(&existing, known) {
+        match write_atomic(&path, &migrated) {
+            Ok(()) => {
+                tighten_private(&path);
+                crate::debug_log::append(
+                    env,
+                    &format!(
+                        "[provider-key] moved {} connector key(s) out of the config into the OS credential store",
+                        literal.len()
+                    ),
+                );
+            }
+            Err(e) => warnings.push(format!(
+                "the connector keys were stored but the config was not rewritten: {e}"
+            )),
+        }
+    }
+    warnings
 }
 
 /// Write the provider key/model into the app-private OpenCode config and restart
