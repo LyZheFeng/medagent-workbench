@@ -22,7 +22,7 @@ const providerDir = join(
 )
 const helper = join(
   providerDir,
-  'Open Science Computer Use.app/Contents/MacOS/osd-computer-use-macos'
+  '医学智能体工作台 Computer Use.app/Contents/MacOS/osd-computer-use-macos'
 )
 const staged = process.platform === 'darwin' && existsSync(helper)
 

@@ -55,7 +55,7 @@ mod platform_impl {
     use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
     use tauri::AppHandle;
 
-    const HELPER_APP_NAME: &str = "Open Science Computer Use.app";
+    const HELPER_APP_NAME: &str = "医学智能体工作台 Computer Use.app";
 
     /// How long to wait for the helper to write its answer. It is a GUI app
     /// launch, so the first one after an update can be slow; past this the

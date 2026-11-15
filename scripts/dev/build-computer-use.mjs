@@ -8,7 +8,7 @@
 //   apps/desktop/src-tauri/computer-use/
 //     runtime.py                        Linux, AT-SPI
 //     runtime.ps1                       Windows, UI Automation
-//     Open Science Computer Use.app     macOS, accessibility API (built here)
+//    医学智能体工作台 Computer Use.app     macOS, accessibility API (built here)
 //
 // The two scripts are copied on every platform — they cost nothing and keep the
 // staged layout identical everywhere. The macOS helper is compiled and signed
@@ -32,7 +32,7 @@ import path from "node:path";
 const root = path.resolve(import.meta.dirname, "../..");
 const stage = path.join(root, "apps", "desktop", "src-tauri", "computer-use");
 const BUNDLE_ID = "com.ai4s.workbench.computer-use";
-const DISPLAY_NAME = "Open Science Computer Use";
+const DISPLAY_NAME = "医学智能体工作台 Computer Use";
 
 mkdirSync(stage, { recursive: true });
 copyFileSync(path.join(root, "native/computer-use-linux/runtime.py"), path.join(stage, "runtime.py"));

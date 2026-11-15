@@ -50,7 +50,14 @@ done
 # the one component that holds Accessibility and Screen Recording. A TCC grant
 # follows the signature, so an unsigned or wrongly-signed helper means the user
 # grants the permission once and loses it on the next launch.
-helper_path="$app_path/Contents/Resources/computer-use/Open Science Computer Use.app"
+#
+# Its bundle name also appears in scripts/dev/build-computer-use.mjs (which
+# creates it), computer.rs and the runtime's provider paths (which look it up);
+# src/test/computer/computer-use-app-name.test.ts fails if those ever disagree,
+# which is what the rebrand left behind: the helper was looked up here under a
+# name the build no longer produced, and on macOS that reads as "computer use has
+# no native provider".
+helper_path="$app_path/Contents/Resources/computer-use/医学智能体工作台 Computer Use.app"
 if [[ -d "$helper_path" ]]; then
   /usr/bin/codesign --verify --deep --strict --verbose=2 "$helper_path"
   verify_developer_id "$helper_path" "$app_team"
