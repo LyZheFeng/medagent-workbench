@@ -1,7 +1,8 @@
 name: desktop CI
 
-# Typecheck, lint and unit tests for the desktop app and its packages, on every
-# PR that touches them, and nightly on master.
+# Typecheck, lint and unit tests for the desktop app and its packages, plus the
+# i18n parity tests as their own check, on every PR that touches them and nightly
+# on master.
 on:
   pull_request:
     paths:
@@ -40,3 +41,20 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm lint
       - run: pnpm test
+
+  # The i18n parity tests already run inside `pnpm test`; this job repeats only
+  # those, so "which language lost a key" is its own red check in a PR instead of
+  # a needle in a 2000-test log. Same trigger paths — the locales live under
+  # apps/desktop/src/i18n.
+  i18n:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @ai4s/desktop exec vitest run src/i18n
