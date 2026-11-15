@@ -608,6 +608,13 @@ mod tests {
         std::fs::remove_dir_all(&home).unwrap();
     }
 
+    // Unix-only by construction: it writes a `#!/bin/sh` wrapper, makes it
+    // executable with `chmod` semantics and runs it with `sh`. Without the guard
+    // the whole crate's test build fails on Windows — `std::os::unix` and
+    // `Permissions::from_mode` do not exist there — which is how the desktop
+    // shell ended up with no Rust tests runnable on the one platform it ships to
+    // most.
+    #[cfg(unix)]
     #[test]
     fn a_wrapper_whose_app_is_gone_says_so_and_removes_itself() {
         // Uninstalling cannot reach a per-user file in $HOME, so the leftover
