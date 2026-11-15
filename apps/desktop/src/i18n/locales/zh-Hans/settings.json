@@ -178,7 +178,7 @@
     "customUrlPlaceholder": "http://127.0.0.1:11434/v1",
     "customKeyPlaceholder": "可选——Ollama 不需要",
     "customModelsPlaceholder": "模型 id，逗号分隔",
-    "customContextPlaceholder": "可选——默认 128k",
+    "customContextPlaceholder": "默认 500k；留空则用 SDK 的 128k",
     "fetchModels": "获取模型",
     "fetchingModels": "获取中…",
     "noModelsFound": "端点未返回任何模型。",

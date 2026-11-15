@@ -178,7 +178,7 @@
     "customUrlPlaceholder": "http://127.0.0.1:11434/v1",
     "customKeyPlaceholder": "任意 — Ollama には不要",
     "customModelsPlaceholder": "モデル ID をカンマ区切りで",
-    "customContextPlaceholder": "任意 — 既定は 128k",
+    "customContextPlaceholder": "既定 500k。空欄なら SDK の 128k",
     "fetchModels": "モデルを取得",
     "fetchingModels": "取得中…",
     "noModelsFound": "エンドポイントからモデルが返されませんでした。",

@@ -179,7 +179,7 @@
     "customUrlPlaceholder": "http://127.0.0.1:11434/v1",
     "customKeyPlaceholder": "Opcional: Ollama no necesita",
     "customModelsPlaceholder": "ids de modelo separados por comas",
-    "customContextPlaceholder": "Opcional: 128k por defecto",
+    "customContextPlaceholder": "500k por defecto; vacío = 128k del SDK",
     "fetchModels": "Obtener modelos",
     "fetchingModels": "Obteniendo…",
     "noModelsFound": "El endpoint no informó ningún modelo.",

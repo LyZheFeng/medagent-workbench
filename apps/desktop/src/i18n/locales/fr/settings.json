@@ -179,7 +179,7 @@
     "customUrlPlaceholder": "http://127.0.0.1:11434/v1",
     "customKeyPlaceholder": "Facultatif — Ollama n'en a pas besoin",
     "customModelsPlaceholder": "ids de modèle, séparés par des virgules",
-    "customContextPlaceholder": "Facultatif — 128k par défaut",
+    "customContextPlaceholder": "500k par défaut ; vide = 128k du SDK",
     "fetchModels": "Récupérer les modèles",
     "fetchingModels": "Récupération…",
     "noModelsFound": "Le point de terminaison n'a signalé aucun modèle.",

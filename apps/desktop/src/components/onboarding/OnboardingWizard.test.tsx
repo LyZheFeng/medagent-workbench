@@ -263,7 +263,10 @@ describe("the first-run wizard", () => {
     expect(probe).not.toHaveBeenCalled();
     expect(client.addCustomProvider).toHaveBeenCalledWith(
       "glm",
-      expect.objectContaining({ models: ["glm-4.5", "glm-4.5-air"], contexts: {} }),
+      expect.objectContaining({
+        models: ["glm-4.5", "glm-4.5-air"],
+        contexts: { "glm-4.5": 500000, "glm-4.5-air": 500000 },
+      }),
     );
   });
 

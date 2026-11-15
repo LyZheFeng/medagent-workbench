@@ -178,7 +178,7 @@
     "customUrlPlaceholder": "http://127.0.0.1:11434/v1",
     "customKeyPlaceholder": "선택 사항 — Ollama는 필요 없음",
     "customModelsPlaceholder": "모델 id, 쉼표로 구분",
-    "customContextPlaceholder": "선택 사항 — 기본 128k",
+    "customContextPlaceholder": "기본 500k, 비우면 SDK 128k",
     "fetchModels": "모델 가져오기",
     "fetchingModels": "가져오는 중…",
     "noModelsFound": "엔드포인트에서 모델을 반환하지 않았습니다.",

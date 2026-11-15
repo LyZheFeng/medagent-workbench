@@ -66,6 +66,7 @@ import {
 import { useSetupStore } from "@/lib/setup";
 import { isGatewayWeb } from "@/lib/webMode";
 import { customProviderId } from "@/lib/customProviderId";
+import { DEFAULT_CONTEXT_WINDOW } from "@/lib/modelDefaults";
 import { listProvidersWithoutBuiltIn } from "@/lib/zenModels";
 import { RemoteComputeCard } from "@/components/settings/RemoteComputeCard";
 import { WebSignedIn } from "@/components/web/WebSignedIn";
@@ -275,8 +276,8 @@ function SettingsPageContent() {
   const [cKey, setCKey] = useState("");
   const [cModels, setCModels] = useState("");
   // Optional context window for hand-typed model ids; probed models carry
-  // their own (cContexts). Empty → the SDK's 128k default.
-  const [cCtx, setCCtx] = useState("");
+  // their own (cContexts). Defaults to 500k; empty → the SDK's 128k default.
+  const [cCtx, setCCtx] = useState(String(DEFAULT_CONTEXT_WINDOW));
   const [cDetected, setCDetected] = useState<ProbedModel[] | null>(null);
   const [cDetecting, setCDetecting] = useState(false);
   const [cContexts, setCContexts] = useState<Record<string, number>>({});
@@ -844,7 +845,7 @@ function SettingsPageContent() {
       setCUrl("");
       setCKey("");
       setCModels("");
-      setCCtx("");
+      setCCtx(String(DEFAULT_CONTEXT_WINDOW));
       setCDetected(null);
       setCContexts({});
     });

@@ -16,6 +16,7 @@ import type { ProviderAuthMethod, ProviderCatalogEntry, ProviderInfo } from "@ai
 import type { Thread } from "./runtime";
 import { useRuntimeStore } from "./runtime";
 import { customProviderId } from "./customProviderId";
+import { DEFAULT_CONTEXT_WINDOW } from "./modelDefaults";
 
 /** localStorage marker: the wizard was completed. It no longer suppresses the
  *  wizard — the provider list does that — so a skipped setup still returns. */
@@ -117,13 +118,16 @@ export function customEndpointDraft(input: {
     return null;
   }
   if ((url.protocol !== "http:" && url.protocol !== "https:") || !url.hostname) return null;
+  const models = parseModelIds(input.models);
+  const contexts =
+    input.contexts ?? Object.fromEntries(models.map((id) => [id, DEFAULT_CONTEXT_WINDOW]));
   return {
     id,
     name,
     baseURL,
     npm: input.npm,
-    models: parseModelIds(input.models),
-    contexts: input.contexts ?? {},
+    models,
+    contexts,
   };
 }
 

@@ -141,6 +141,16 @@ describe("custom endpoint form", () => {
     });
   });
 
+  it("defaults a hand-added model's context to 500k", () => {
+    const draft = customEndpointDraft({
+      name: "GLM",
+      baseURL: "https://open.bigmodel.cn/api/paas/v4",
+      npm: OPENAI_COMPATIBLE,
+      models: "glm-4.5",
+    });
+    expect(draft?.contexts).toEqual({ "glm-4.5": 500000 });
+  });
+
   it("accepts an empty model list: the key step can probe for it", () => {
     const draft = customEndpointDraft({
       name: "Local",

@@ -32,6 +32,7 @@ import {
   type ProviderChoice,
 } from "@/lib/onboarding";
 import { cn } from "@/lib/cn";
+import { DEFAULT_CONTEXT_WINDOW } from "@/lib/modelDefaults";
 import { inputCls, selectCls } from "@/components/settings/inputCls";
 import { isGatewayWeb } from "@/lib/webMode";
 import { ZEN_PROVIDER_ID } from "@/lib/zenModels";
@@ -265,7 +266,8 @@ export function OnboardingWizard({
           const models = found.models.map((model) => model.id);
           const contexts: Record<string, number> = {};
           for (const model of found.models) {
-            if (model.context && model.context > 0) contexts[model.id] = model.context;
+            contexts[model.id] =
+              model.context && model.context > 0 ? model.context : DEFAULT_CONTEXT_WINDOW;
           }
           if (models.length === 0) throw new Error(t("onboarding.customNoModels"));
           // The probe reports the URL that actually served the list (relay
