@@ -12,7 +12,8 @@
     "computer": "电脑操作",
     "remote": "远程访问",
     "memory": "记忆",
-    "desktopOnly": "该部分在桌面应用中可用。"
+    "desktopOnly": "该部分在桌面应用中可用。",
+    "about": "关于"
   },
   "appearance": {
     "title": "外观",
@@ -690,5 +691,25 @@
     "proxyUrl": "代理地址",
     "stallSilenceMinutes": "静默多少分钟后提示卡住",
     "stallRepeatThreshold": "同一调用重复几次后提示循环"
+  },
+  "compliance": {
+    "title": "使用声明",
+    "badge": "科研与教学用工具，不是医疗器械",
+    "body": "本工作台用于医学科研与教学。它不是医疗器械，不提供面向个体患者的诊断、治疗或用药建议；所有输出都必须由具备资质的研究者复核。",
+    "p1": "不用于临床决策：任何输出都不能作为诊断、治疗或用药依据。",
+    "p2": "模型推理会经你配置的接口出网；涉及患者数据前，请先评估合规要求。",
+    "p3": "工作区、会话与溯源日志留在本机；导出的文件由你自行保管。",
+    "ack": "我已了解",
+    "settingsLink": "可随时在“设置 → 关于”中查看。"
+  },
+  "about": {
+    "title": "关于",
+    "version": "版本",
+    "runtime": "运行时",
+    "license": "许可",
+    "licenseText": "MIT 许可，衍生自 Open Source Desktop（MIT）。",
+    "repo": "项目主页",
+    "upstream": "上游项目",
+    "complianceTitle": "使用声明"
   }
 }

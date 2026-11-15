@@ -80,6 +80,15 @@ describe("sessionToMarkdown", () => {
     expect(md).not.toContain("internal marker");
     expect(md).toContain("real answer");
   });
+
+  it("carries the medical boundary, because the file outlives the app", () => {
+    // Bilingual on purpose: the reader of an exported transcript may not read
+    // the interface language it was written in.
+    const md = sessionToMarkdown(session, []);
+    expect(md).toContain("仅供科研与教学使用");
+    expect(md).toContain("not a medical device");
+    expect(md).toContain("review by a qualified researcher");
+  });
 });
 
 describe("exportIndex", () => {
@@ -96,5 +105,7 @@ describe("exportIndex", () => {
     expect(md).toContain("| 2026-07-02 | Spike sorting | [Spike sorting.md](Spike%20sorting.md) |");
     // A pipe in a title must not break the table it sits in.
     expect(md).toContain("Pipe \\| table");
+    // The index points at the same boundary the transcripts carry.
+    expect(md).toContain("仅供科研与教学使用");
   });
 });

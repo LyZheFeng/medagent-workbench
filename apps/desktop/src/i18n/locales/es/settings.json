@@ -12,7 +12,8 @@
     "computer": "Uso del equipo",
     "remote": "Acceso remoto",
     "memory": "Memoria",
-    "desktopOnly": "Esta sección está disponible en la app de escritorio."
+    "desktopOnly": "Esta sección está disponible en la app de escritorio.",
+    "about": "Acerca de"
   },
   "appearance": {
     "title": "Apariencia",
@@ -692,5 +693,25 @@
     "proxyUrl": "Dirección del proxy",
     "stallSilenceMinutes": "Minutos de silencio antes del aviso de bloqueo",
     "stallRepeatThreshold": "Repeticiones de una llamada antes del aviso de bucle"
+  },
+  "compliance": {
+    "title": "Aviso",
+    "badge": "Una herramienta de investigación y docencia, no un producto sanitario",
+    "body": "Este espacio de trabajo es para investigación y docencia médica. No es un producto sanitario y no ofrece diagnóstico, tratamiento ni consejo de prescripción para un paciente individual. Todo resultado debe ser revisado por un investigador cualificado.",
+    "p1": "No para decisiones clínicas: nada de lo que produce puede servir de base para un diagnóstico, tratamiento o prescripción.",
+    "p2": "La inferencia sale de este equipo por el endpoint que configures; evalúa los requisitos de cumplimiento antes de enviar datos de pacientes.",
+    "p3": "El espacio de trabajo, las conversaciones y la trazabilidad permanecen en este equipo; los archivos exportados son responsabilidad tuya.",
+    "ack": "Entendido",
+    "settingsLink": "Siempre disponible en Ajustes → Acerca de."
+  },
+  "about": {
+    "title": "Acerca de",
+    "version": "Versión",
+    "runtime": "Entorno de ejecución",
+    "license": "Licencia",
+    "licenseText": "MIT, derivado de Open Source Desktop (MIT).",
+    "repo": "Página del proyecto",
+    "upstream": "Proyecto original",
+    "complianceTitle": "Aviso"
   }
 }

@@ -11,6 +11,19 @@ function cap(text: string, max: number): string {
   return trimmed.length <= max ? trimmed : `${trimmed.slice(0, max)}\n… (truncated)`;
 }
 
+/**
+ * Every exported document carries the medical boundary. Bilingual on purpose:
+ * an export outlives this app and the interface language it happened to be made
+ * in, and the statement is the one thing a reader of the file must not miss.
+ */
+const NOT_MEDICAL_DEVICE = [
+  "---",
+  "",
+  "> **仅供科研与教学使用** — 不构成诊疗建议，也不是医疗器械。所有结论需由具备资质的研究者复核。",
+  ">",
+  "> **For research and teaching only** — not a medical device, and not diagnosis or treatment advice for any individual patient. Every conclusion needs review by a qualified researcher.",
+].join("\n");
+
 /** A conversation as a standalone Markdown document: front matter a script can
  *  parse, then the turns in order. Deliberately plain — the point of an export
  *  is that it outlives this app. */
@@ -64,7 +77,7 @@ export function sessionToMarkdown(session: SessionMeta, messages: HistoryMessage
     if (m.error) lines.push(`> **Turn failed:** ${m.error}`, "");
   }
 
-  return `${lines.join("\n").replace(/\n{3,}/g, "\n\n").trimEnd()}\n`;
+  return `${lines.join("\n").replace(/\n{3,}/g, "\n\n").trimEnd()}\n\n${NOT_MEDICAL_DEVICE}\n`;
 }
 
 /** The index written alongside an export, so a folder of transcripts is
@@ -86,5 +99,5 @@ export function exportIndex(
     const title = session.title.replace(/\|/g, "\\|");
     lines.push(`| ${when} | ${title} | [${file}](${encodeURI(file)}) |`);
   }
-  return `${lines.join("\n")}\n`;
+  return `${lines.join("\n")}\n\n${NOT_MEDICAL_DEVICE}\n`;
 }

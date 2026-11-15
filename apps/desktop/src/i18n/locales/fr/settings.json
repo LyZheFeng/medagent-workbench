@@ -12,7 +12,8 @@
     "computer": "Contrôle de l'ordinateur",
     "remote": "Accès distant",
     "memory": "Mémoire",
-    "desktopOnly": "Cette section est disponible dans l'application de bureau."
+    "desktopOnly": "Cette section est disponible dans l'application de bureau.",
+    "about": "À propos"
   },
   "appearance": {
     "title": "Apparence",
@@ -692,5 +693,25 @@
     "proxyUrl": "Adresse du proxy",
     "stallSilenceMinutes": "Minutes de silence avant l’alerte de blocage",
     "stallRepeatThreshold": "Répétitions d’un appel avant l’alerte de boucle"
+  },
+  "compliance": {
+    "title": "Avis",
+    "badge": "Un outil de recherche et d'enseignement — pas un dispositif médical",
+    "body": "Cet atelier est destiné à la recherche et à l'enseignement médical. Ce n'est pas un dispositif médical et il ne fournit ni diagnostic, ni traitement, ni conseil de prescription pour un patient individuel. Chaque résultat doit être vérifié par un chercheur qualifié.",
+    "p1": "Pas pour les décisions cliniques : rien de ce qu'il produit ne peut servir de base à un diagnostic, un traitement ou une prescription.",
+    "p2": "L'inférence quitte cette machine via le point d'accès que vous configurez ; évaluez les exigences de conformité avant d'envoyer des données de patients.",
+    "p3": "L'espace de travail, les conversations et la traçabilité restent sur cette machine ; les fichiers exportés sont à votre charge.",
+    "ack": "J'ai compris",
+    "settingsLink": "Toujours disponible dans Paramètres → À propos."
+  },
+  "about": {
+    "title": "À propos",
+    "version": "Version",
+    "runtime": "Moteur",
+    "license": "Licence",
+    "licenseText": "MIT, dérivé d'Open Source Desktop (MIT).",
+    "repo": "Page du projet",
+    "upstream": "Projet d'origine",
+    "complianceTitle": "Avis"
   }
 }

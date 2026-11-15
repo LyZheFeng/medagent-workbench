@@ -75,6 +75,7 @@ import { ConversationSyncCard } from "@/components/settings/ConversationSyncCard
 import { AgentsCard } from "@/components/settings/AgentsCard";
 import { ModalCard } from "@/components/settings/ModalCard";
 import { DataFlowCard } from "@/components/settings/DataFlowCard";
+import { AboutCard } from "@/components/settings/AboutCard";
 import { ComputerUseCard } from "@/components/settings/ComputerUseCard";
 import { UserBrowserCard } from "@/components/settings/UserBrowserCard";
 import { ModelBrowser } from "@/components/settings/ModelBrowser";
@@ -2192,6 +2193,9 @@ function SettingsPageContent() {
 
         {/* ---- Privacy & data flow ---- */}
         {section === "privacy" && <DataFlowCard model={defaultModel} workspace={wsPath} />}
+
+        {/* ---- About: version, licence, and the medical boundary ---- */}
+        {section === "about" && <AboutCard />}
 
         {/* ---- Appearance ---- */}
         {section === "appearance" && (

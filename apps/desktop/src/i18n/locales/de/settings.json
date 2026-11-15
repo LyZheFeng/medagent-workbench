@@ -12,7 +12,8 @@
     "computer": "Computersteuerung",
     "remote": "Fernzugriff",
     "memory": "Gedächtnis",
-    "desktopOnly": "Dieser Bereich ist in der Desktop-App verfügbar."
+    "desktopOnly": "Dieser Bereich ist in der Desktop-App verfügbar.",
+    "about": "Über"
   },
   "appearance": {
     "title": "Erscheinungsbild",
@@ -692,5 +693,25 @@
     "proxyUrl": "Proxy-Adresse",
     "stallSilenceMinutes": "Minuten Stille bis zur Hänger-Warnung",
     "stallRepeatThreshold": "Wiederholungen eines Aufrufs bis zur Schleifen-Warnung"
+  },
+  "compliance": {
+    "title": "Hinweis",
+    "badge": "Ein Werkzeug für Forschung und Lehre — kein Medizinprodukt",
+    "body": "Diese Workbench dient der medizinischen Forschung und Lehre. Sie ist kein Medizinprodukt und gibt keine Diagnose-, Therapie- oder Verordnungsempfehlungen für einzelne Patientinnen und Patienten. Jede Ausgabe muss von qualifizierten Forschenden geprüft werden.",
+    "p1": "Nicht für klinische Entscheidungen: Nichts, was sie erzeugt, darf als Grundlage für Diagnose, Therapie oder Verordnung dienen.",
+    "p2": "Die Modellinferenz verlässt dieses Gerät über den von Ihnen konfigurierten Endpunkt; prüfen Sie vor dem Senden von Patientendaten die Compliance-Anforderungen.",
+    "p3": "Arbeitsbereich, Gespräche und Herkunftsprotokolle bleiben auf diesem Gerät; exportierte Dateien müssen Sie selbst sichern.",
+    "ack": "Verstanden",
+    "settingsLink": "Jederzeit unter Einstellungen → Über verfügbar."
+  },
+  "about": {
+    "title": "Über",
+    "version": "Version",
+    "runtime": "Laufzeit",
+    "license": "Lizenz",
+    "licenseText": "MIT, abgeleitet von Open Source Desktop (MIT).",
+    "repo": "Projektseite",
+    "upstream": "Upstream-Projekt",
+    "complianceTitle": "Hinweis"
   }
 }

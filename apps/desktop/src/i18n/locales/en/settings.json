@@ -12,7 +12,8 @@
     "computer": "Computer Use",
     "remote": "Remote Access",
     "memory": "Memory",
-    "desktopOnly": "This section is available in the desktop app."
+    "desktopOnly": "This section is available in the desktop app.",
+    "about": "About"
   },
   "appearance": {
     "title": "Appearance",
@@ -692,5 +693,25 @@
     "proxyUrl": "Proxy address",
     "stallSilenceMinutes": "Minutes of silence before a stuck warning",
     "stallRepeatThreshold": "Repeats of one call before a loop warning"
+  },
+  "compliance": {
+    "title": "Notice",
+    "badge": "A research and teaching tool — not a medical device",
+    "body": "This workbench is for medical research and teaching. It is not a medical device and gives no diagnosis, treatment or prescribing advice for an individual patient; every output must be reviewed by a qualified researcher.",
+    "p1": "Not for clinical decisions: nothing it produces may be used as the basis for a diagnosis, treatment or prescription.",
+    "p2": "Inference leaves this machine through the model endpoint you configure; assess the compliance requirements before sending patient data.",
+    "p3": "Workspace files, conversations and provenance stay on this machine; exported files are yours to safeguard.",
+    "ack": "I understand",
+    "settingsLink": "Always available under Settings → About."
+  },
+  "about": {
+    "title": "About",
+    "version": "Version",
+    "runtime": "Runtime",
+    "license": "License",
+    "licenseText": "MIT, derived from Open Source Desktop (MIT).",
+    "repo": "Project home",
+    "upstream": "Upstream project",
+    "complianceTitle": "Notice"
   }
 }

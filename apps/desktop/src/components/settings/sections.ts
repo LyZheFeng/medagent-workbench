@@ -7,6 +7,7 @@ import {
   IconDatabaseOutlineRegular,
   IconGaugeOutlineRegular,
   IconGlobeOutlineRegular,
+  IconInfoOutlineRegular,
   IconLinkOutlineRegular,
   IconPersonalizationOutlineRegular,
   IconSettingsOutlineRegular,
@@ -35,6 +36,9 @@ export const SETTINGS_SECTIONS = [
   { key: "compute", icon: IconGaugeOutlineRegular, desktopOnly: true },
   { key: "remote", icon: IconLinkOutlineRegular, desktopOnly: true },
   { key: "privacy", icon: IconShieldOutlineRegular },
+  // Version, license and the medical boundary: the statement a user must be
+  // able to re-read at any time, not only in the first-run notice.
+  { key: "about", icon: IconInfoOutlineRegular },
 ] as const satisfies ReadonlyArray<{ key: string; icon: ComponentType<IconProps>; desktopOnly?: boolean }>;
 
 export type SettingsSection = (typeof SETTINGS_SECTIONS)[number]["key"];

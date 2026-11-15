@@ -64,6 +64,8 @@ pnpm --filter @ai4s/desktop tauri dev
   (Windows 凭据管理器 / macOS 钥匙串 / Linux libsecret),`opencode.json` 只保留
   `{env:MEDAGENT_KEY_…}` 引用,启动时注入;旧配置(含 OpenCode 自己的 `auth.json`)里
   已有的明文 key 在首次启动时自动迁移
+- **合规声明在应用内**:首次启动一次性提示,`设置 → 关于` 常驻,导出的 Markdown
+  页脚中英双写 —— 三处同一份文案
 - 移除无引用的 `xlsx` 直链依赖;`.gitattributes` 固定换行为 LF
 
 ## 尚未完成(不隐瞒)
