@@ -34,15 +34,12 @@ describe("first-run onboarding gating", () => {
     expect(hasCompletedOnboarding()).toBe(true);
   });
 
-  it("offers itself only where no provider is configured yet", () => {
-    const zen: ProviderInfo = { id: "opencode", name: "OpenCode Zen", models: [] };
+  it("offers itself only while no provider is configured", () => {
     const mine: ProviderInfo = { id: "medagent-glm", name: "GLM", models: [] };
     expect(offersOnboarding([])).toBe(true);
-    // The built-in provider ships with the runtime, and its free tier is not a
-    // configured install: a default model on it still needs the API wizard.
-    expect(offersOnboarding([zen])).toBe(true);
-    // An existing install has added a provider of its own.
-    expect(offersOnboarding([zen, mine])).toBe(false);
+    // The built-in provider is filtered out before the store sees it; any
+    // provider here is one the user configured.
+    expect(offersOnboarding([mine])).toBe(false);
   });
 });
 

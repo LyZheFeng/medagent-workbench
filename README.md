@@ -77,6 +77,8 @@ pnpm --filter @ai4s/desktop tauri dev
   openpyxl / python-docx / python-pptx / pypdf / pdfplumber 随包提供,OpenCode
   的 `python` 指向它。安装后只需配置模型 key,5 个确定性脚本、图表、Word/Excel
   基础能力即可使用(Excel 公式重算与 Office→PDF 仍需 LibreOffice)
+- **移除内置 OpenCode Zen 免费模型**:运行时仍会把它报给应用,但 provider 列表
+  入口统一过滤;首次启动、设置和模型选择器都不再出现,用户必须配置自己的模型 API
 - 移除无引用的 `xlsx` 直链依赖;`.gitattributes` 固定换行为 LF
 
 ## 尚未完成(不隐瞒)

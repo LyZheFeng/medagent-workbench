@@ -12,11 +12,6 @@ import { COMPLIANCE_ACK_KEY } from "@/components/compliance/ComplianceNotice";
 import { FirstRun } from "./FirstRun";
 import { OnboardingWizard } from "./OnboardingWizard";
 
-const zen: ProviderInfo = {
-  id: "opencode",
-  name: "OpenCode Zen",
-  models: [{ id: "zen-free", name: "Zen Free", free: true }],
-};
 const mine: ProviderInfo = {
   id: "medagent-glm",
   name: "GLM",
@@ -66,7 +61,7 @@ function clientMock() {
 function loadCatalogAfterKey() {
   return vi.fn(async () => {
     if (vi.mocked(tauri.storeProviderKey).mock.calls.length > 0) {
-      useRuntimeStore.setState({ providers: [zen, deepseek] });
+      useRuntimeStore.setState({ providers: [deepseek] });
     }
   });
 }
@@ -76,7 +71,7 @@ function loadCatalogAfterKey() {
 function loadCatalogAfterEndpoint(client: ReturnType<typeof clientMock>) {
   return vi.fn(async () => {
     if (client.addCustomProvider.mock.calls.length > 0) {
-      useRuntimeStore.setState({ providers: [zen, addedEndpoint] });
+      useRuntimeStore.setState({ providers: [addedEndpoint] });
     }
   });
 }
@@ -104,7 +99,7 @@ beforeEach(async () => {
   vi.spyOn(tauri, "restartRuntime").mockResolvedValue("http://127.0.0.1:4096");
   useRuntimeStore.setState({
     status: "ready",
-    providers: [zen],
+    providers: [],
     defaultModel: null,
     loadCatalog: vi.fn(async () => undefined),
     connectRetry: vi.fn(async () => true),
@@ -126,9 +121,9 @@ afterEach(() => {
 describe("the first-run wizard", () => {
   it("stays away from an install that already has a provider", async () => {
     const loadCatalog = vi.fn(async () => {
-      useRuntimeStore.setState({ providers: [zen, mine], defaultModel: "medagent-glm/glm-5" });
+      useRuntimeStore.setState({ providers: [mine], defaultModel: "medagent-glm/glm-5" });
     });
-    useRuntimeStore.setState({ providers: [zen, mine], loadCatalog } as never);
+    useRuntimeStore.setState({ providers: [mine], loadCatalog } as never);
 
     await renderWizard();
     await waitFor(() => expect(loadCatalog).toHaveBeenCalled());
@@ -285,7 +280,6 @@ describe("the first-run wizard", () => {
         if (client.addCustomProvider.mock.calls.length > 0) {
           useRuntimeStore.setState({
             providers: [
-              zen,
               {
                 id: "claude-relay",
                 name: "Claude relay",

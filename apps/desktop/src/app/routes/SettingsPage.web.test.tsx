@@ -69,8 +69,10 @@ describe("Providers in the gateway web client", () => {
   it("shows what is connected and where to change it", async () => {
     // Scoped to the card: the provider names also appear in the model browser.
     const card = screen.getByRole("heading", { level: 2, name: "OpenCode providers" }).closest("section")!;
-    expect(await within(card).findByText("OpenCode Zen")).toBeInTheDocument();
-    expect(within(card).getByText("OpenAI")).toBeInTheDocument();
+    // The built-in Zen provider is not part of the product; only the user's
+    // providers appear.
+    expect(within(card).queryByText("OpenCode Zen")).not.toBeInTheDocument();
+    expect(await within(card).findByText("OpenAI")).toBeInTheDocument();
     expect(within(card).getByText(/osd auth set/)).toBeInTheDocument();
     expect(
       within(card).getByText("Connected providers — read-only from the browser"),

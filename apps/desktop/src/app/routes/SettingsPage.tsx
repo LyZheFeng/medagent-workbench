@@ -66,7 +66,7 @@ import {
 import { useSetupStore } from "@/lib/setup";
 import { isGatewayWeb } from "@/lib/webMode";
 import { customProviderId } from "@/lib/customProviderId";
-import { listProvidersWithAvailability } from "@/lib/zenModels";
+import { listProvidersWithoutBuiltIn } from "@/lib/zenModels";
 import { RemoteComputeCard } from "@/components/settings/RemoteComputeCard";
 import { WebSignedIn } from "@/components/web/WebSignedIn";
 import { RemoteAccessCard } from "@/components/settings/RemoteAccessCard";
@@ -323,7 +323,7 @@ function SettingsPageContent() {
     // good list to keep showing. The rest is auxiliary settings data.
     let fresh: ProviderInfo[] | null = null;
     try {
-      fresh = await listProvidersWithAvailability(client);
+      fresh = await listProvidersWithoutBuiltIn(client);
       setProviders(fresh);
       setCatalogState("ready");
     } catch {

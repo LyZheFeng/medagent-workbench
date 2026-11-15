@@ -16,11 +16,9 @@ import type { ProviderAuthMethod, ProviderCatalogEntry, ProviderInfo } from "@ai
 import type { Thread } from "./runtime";
 import { useRuntimeStore } from "./runtime";
 import { customProviderId } from "./customProviderId";
-import { ZEN_PROVIDER_ID } from "./zenModels";
 
-/** localStorage flag: the wizard ran once (finished or deliberately skipped).
- *  Per install, like the compliance acknowledgement — it is an on-ramp, not a
- *  permanent surface; Settings remains the permanent home of both settings. */
+/** localStorage marker: the wizard was completed. It no longer suppresses the
+ *  wizard — the provider list does that — so a skipped setup still returns. */
 export const ONBOARDING_DONE_KEY = "ai4s.onboarding.v1";
 
 export function hasCompletedOnboarding(): boolean {
@@ -49,11 +47,10 @@ export function markOnboardingComplete(): void {
  * with the runtime and is exactly what the wizard offers as the keyless path.
  */
 export function offersOnboarding(providers: ProviderInfo[]): boolean {
-  // A provider the user added is the only evidence of a configured install. A
-  // default model alone is not — especially one on the built-in provider, whose
-  // free tier is not dependable. Leaving the wizard up is what lets the user
-  // replace a dead free model with their own API.
-  return providers.every((provider) => provider.id === ZEN_PROVIDER_ID);
+  // The built-in provider is dropped before this list reaches the store, so any
+  // provider left is one the user configured. An empty list means the app has
+  // no usable model yet and must ask for the user's API.
+  return providers.length === 0;
 }
 
 export interface ProviderChoice {
