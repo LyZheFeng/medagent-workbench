@@ -170,6 +170,49 @@ pub fn migrate_legacy_data_dir(data_dir: &Path) -> Result<bool, String> {
             "could not move the pre-0.8.0 data directory {legacy:?} to {data_dir:?}: {e}"
         )
     })?;
+    // The profile's opencode.json holds absolute paths written while the data
+    // directory still had the old identifier: the global memory file, the plugin
+    // entry points, the permission roots. Left alone they name a directory that
+    // no longer exists, and the agent quietly loses its memory layer — which is
+    // exactly what happened on the first real upgrade. Rewrite them; a failure
+    // here must not fail the move, since the app regenerates most of that file.
+    if let Err(e) = rewrite_moved_profile_paths(data_dir, &legacy) {
+        eprintln!("could not repair the moved profile's paths: {e}");
+    }
+    Ok(true)
+}
+
+/// Point the moved profile's `opencode.json` at the new data directory.
+///
+/// Only that one file: it is the file the app owns and the only place these
+/// absolute paths are stored as text. Both separator styles are replaced, because
+/// the config is written with forward slashes on Windows but a user's hand edit
+/// may have left a backslash.
+fn rewrite_moved_profile_paths(data_dir: &Path, legacy: &Path) -> Result<bool, String> {
+    let config = data_dir
+        .join("runtime")
+        .join("xdg-config")
+        .join("opencode")
+        .join("opencode.json");
+    let Ok(text) = std::fs::read_to_string(&config) else {
+        return Ok(false); // no profile yet: nothing to repair
+    };
+    let mut updated = text.clone();
+    let old = legacy.to_string_lossy().into_owned();
+    let new = data_dir.to_string_lossy().into_owned();
+    for (from, to) in [
+        (old.replace('\\', "/"), new.replace('\\', "/")),
+        (old.clone(), new.clone()),
+    ] {
+        if !from.is_empty() && updated.contains(&from) {
+            updated = updated.replace(&from, &to);
+        }
+    }
+    if updated == text {
+        return Ok(false);
+    }
+    std::fs::write(&config, updated)
+        .map_err(|e| format!("could not rewrite {config:?}: {e}"))?;
     Ok(true)
 }
 
@@ -472,6 +515,57 @@ mod tests {
         std::fs::create_dir_all(&legacy).unwrap();
         assert!(!migrate_legacy_data_dir(&current).unwrap());
         assert_eq!(std::fs::read(current.join("session.db")).unwrap(), b"old sessions");
+
+        std::fs::remove_dir_all(&root).unwrap();
+    }
+
+    /// A moved profile must stop naming the old directory: opencode.json's
+    /// absolute paths (memory file, plugins) survive the rename and would point
+    /// at nothing — the memory layer then never loads, silently.
+    #[test]
+    fn the_moved_profile_stops_naming_the_old_directory() {
+        let root = std::env::temp_dir().join(format!("migrate-paths-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        let legacy = root.join(LEGACY_IDENTIFIER);
+        let current = root.join(IDENTIFIER);
+        let cfg_dir = legacy.join("runtime").join("xdg-config").join("opencode");
+        std::fs::create_dir_all(&cfg_dir).unwrap();
+        // Written the way the app writes it: absolute, forward slashes.
+        let old = legacy.to_string_lossy().replace('\\', "/");
+        let config = format!(
+            r#"{{"instructions":["{old}/runtime/xdg-config/opencode/MEMORY.md","AGENTS.md"],"plugin":["{old}/runtime/xdg-config/opencode/goal-plugin.server.js"]}}"#
+        );
+        std::fs::write(cfg_dir.join("opencode.json"), &config).unwrap();
+
+        assert!(migrate_legacy_data_dir(&current).unwrap());
+
+        let moved = current
+            .join("runtime")
+            .join("xdg-config")
+            .join("opencode")
+            .join("opencode.json");
+        let text = std::fs::read_to_string(&moved).unwrap();
+        let new = current.to_string_lossy().replace('\\', "/");
+        assert!(!text.contains(&old), "still names the old directory: {text}");
+        assert!(text.contains(&format!("{new}/runtime/xdg-config/opencode/MEMORY.md")));
+        assert!(text.contains(&format!("{new}/runtime/xdg-config/opencode/goal-plugin.server.js")));
+        // Anything that never named the old directory is left alone.
+        assert!(text.contains("\"AGENTS.md\""));
+
+        std::fs::remove_dir_all(&root).unwrap();
+    }
+
+    /// No profile at all is normal (a first run that never wrote one): the move
+    /// still succeeds.
+    #[test]
+    fn a_missing_profile_is_not_a_migration_error() {
+        let root = std::env::temp_dir().join(format!("migrate-nocfg-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(root.join(LEGACY_IDENTIFIER)).unwrap();
+        let current = root.join(IDENTIFIER);
+
+        assert!(migrate_legacy_data_dir(&current).unwrap());
+        assert!(current.is_dir());
 
         std::fs::remove_dir_all(&root).unwrap();
     }
