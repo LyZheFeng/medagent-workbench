@@ -56,6 +56,27 @@ primary endpoint the calculation serves. Provide the standard formulas for:
 - Paired/continuous (mean difference, pooled SD)
 - Diagnostic accuracy: sensitivity/specificity CI precision (Buderer's method)
 
+Helper (stdlib-only, same ```review block as `diag_stats.py`):
+
+```bash
+python "$XDG_CONFIG_HOME/opencode/skills/medical-stats/stats_power.py" \
+  two-proportions --p1 0.50 --p2 0.30 --power 0.80
+python ... non-inferiority --p1 0.50 --p2 0.50 --margin 0.10
+python ... means --delta 5 --sd 10 --power 0.80
+python ... accuracy --sensitivity 0.90 --specificity 0.85 \
+  --half-width 0.05 --prevalence 0.30
+python ... survival --hr 0.70 --event-rate 0.60 --power 0.80
+```
+
+Each design prints the rounded-up size, the **power actually achieved at that
+size** (the number a protocol should quote), and the formula it used. Common
+options: `--alpha` (0.05), `--power` (0.80), `--ratio` (n2/n1, 1), `--dropout`
+(0, inflates n without changing the target power). The script refuses a zero
+difference, a margin smaller than the expected difference, `hr = 1`, and
+non-inferiority with unequal allocation. It does not choose the effect size for
+you: state where p1/p2/Δ/SD/HR came from (prior literature, pilot, or the
+smallest clinically important difference).
+
 ## Survival analysis
 
 - Kaplan–Meier with log-rank for unadjusted comparison; report median survival
@@ -63,6 +84,11 @@ primary endpoint the calculation serves. Provide the standard formulas for:
 - Cox PH: report HR with 95% CI per covariate, verify PH assumption
   (Schoenfeld residuals), state censoring counts
 - Never plot a survival curve without the risk table under it
+
+The helpers cover KM + log-rank (`med-figures/med_figures.py`) and the event
+count for a log-rank comparison (`stats_power.py survival`, Schoenfeld). Fitting
+a Cox model is still done elsewhere (R/Stata/Python); report it with the PH check
+and the censoring count, not just the HR.
 
 ## Multiple comparisons & reporting
 
