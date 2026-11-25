@@ -1,4 +1,5 @@
 import {
+  useCallback,
   useEffect,
   useMemo,
   useRef,
@@ -24,6 +25,8 @@ import {
   Zap,
 } from "lucide-react";
 import { agentForTurn, useRuntimeStore, type AcpOptionsProbe } from "@/lib/runtime";
+import { useTransientScrollbar } from "@/lib/transientScrollbar";
+import { useHorizontalWheel } from "@/lib/horizontalWheel";
 import { useIsMobile } from "@/lib/useIsMobile";
 import { useAgentChoices } from "@/lib/agentChoices";
 import { accountKindOf, accountLabel, splitAgentId, useAccountsStore, withAccount } from "@/lib/agentAccounts";
@@ -339,6 +342,16 @@ export function ModelPicker({
   );
   const rootRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
+  // The chip strip scrolls sideways; give it a wheel, and a bar while it moves.
+  const chipBar = useTransientScrollbar();
+  const chipWheel = useHorizontalWheel();
+  const chipStripRef = useCallback(
+    (el: HTMLDivElement | null) => {
+      chipBar(el);
+      chipWheel(el);
+    },
+    [chipBar, chipWheel],
+  );
 
   const options = useMemo(() => flattenModelOptions(providers), [providers]);
   const variantsByKey = useMemo(() => {
@@ -640,9 +653,13 @@ export function ModelPicker({
         </div>
       )}
 
-      {/* Filter chips */}
+      {/* Filter chips: both affordances, because a desktop mouse has one
+          wheel and no drag target while the bar is hidden at rest. */}
       {options.length > 0 && (
-        <div className="no-scrollbar flex shrink-0 gap-1 overflow-x-auto border-b border-faint px-2 py-1.5">
+        <div
+          ref={chipStripRef}
+          className="flex shrink-0 gap-1 scrollbar-transient overflow-x-auto border-b border-faint px-2 py-1.5"
+        >
           {filterChips.map((chip) => (
             <button
               key={chip.key}
