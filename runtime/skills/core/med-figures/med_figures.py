@@ -1597,7 +1597,7 @@ def _report(kind: str, table: Table | None, params: dict, estimates: dict,
     if extra:
         payload.update(extra)
     print("```review")
-    print(json.dumps(payload, ensure_ascii=False, indent=1))
+    print(json.dumps(json_safe(payload), ensure_ascii=False, indent=1, allow_nan=False))
     print("```")
     return 0 if rendered else 3
 
@@ -1834,9 +1834,33 @@ def cmd_flow(ns) -> int:
         "style": style,
     }
     print("```review")
-    print(json.dumps(payload, ensure_ascii=False, indent=1))
+    print(json.dumps(json_safe(payload), ensure_ascii=False, indent=1, allow_nan=False))
     print("```")
     return 0 if rendered else 3
+
+
+def json_safe(value):
+    """Replace non-finite floats with null, recursively.
+
+    JSON has no NaN/Infinity: a degenerate table (no participants in a group,
+    a cutoff nobody cleared) leaves sensitivity or prevalence undefined, and a
+    strict reader would fail on the block instead of reading it as undefined.
+    The warnings already say which estimate is missing and why.
+    """
+    if isinstance(value, float):
+        return value if math.isfinite(value) else None
+    if isinstance(value, dict):
+        return {k: json_safe(v) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [json_safe(v) for v in value]
+    return value
+
+
+def shown(value, digits: int = 3) -> str:
+    """`n/a` rather than `nan` on screen: undefined is not a number."""
+    if value is None or (isinstance(value, float) and not math.isfinite(value)):
+        return "n/a"
+    return f"{value:.{digits}f}"
 
 
 def cmd_bland_altman(ns) -> int:
@@ -1896,11 +1920,11 @@ def cmd_table(ns) -> int:
     analysis = table_analysis(**counts)
     m = analysis["metrics"]
     print(f"table: n={analysis['n']}, prevalence "
-          f"{analysis['prevalence']:.3f}")
-    print(f"  sensitivity {m['sensitivity'][0]:.3f} "
-          f"({m['sensitivity'][1]:.3f}-{m['sensitivity'][2]:.3f}), "
-          f"specificity {m['specificity'][0]:.3f} "
-          f"({m['specificity'][1]:.3f}-{m['specificity'][2]:.3f})")
+          f"{shown(analysis['prevalence'])}")
+    print(f"  sensitivity {shown(m['sensitivity'][0])} "
+          f"({shown(m['sensitivity'][1])}-{shown(m['sensitivity'][2])}), "
+          f"specificity {shown(m['specificity'][0])} "
+          f"({shown(m['specificity'][1])}-{shown(m['specificity'][2])})")
     for warning in analysis["warnings"]:
         print(f"  warning: {warning}")
     estimates = {

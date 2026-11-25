@@ -29,6 +29,31 @@ import sys
 Z = 1.959963984540054  # two-sided 95%
 
 
+def json_safe(value):
+    """Replace non-finite floats with null, recursively.
+
+    A degenerate 2x2 (no participants at all, or a cutoff nobody cleared)
+    leaves sensitivity, prevalence and Youden's J undefined. Python prints
+    those as NaN, which JSON does not have: a consumer that parses this block
+    with a strict reader would fail on a table it should merely have called
+    undefined. The warnings already explain why the estimate is missing.
+    """
+    if isinstance(value, float):
+        return value if math.isfinite(value) else None
+    if isinstance(value, dict):
+        return {k: json_safe(v) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [json_safe(v) for v in value]
+    return value
+
+
+def shown(value, digits: int = 3) -> str:
+    """`n/a` rather than `nan` on screen: the number is undefined, not zero."""
+    if value is None or (isinstance(value, float) and not math.isfinite(value)):
+        return "n/a"
+    return f"{value:.{digits}f}"
+
+
 # --------------------------------------------------------------------------- #
 # Intervals
 # --------------------------------------------------------------------------- #
@@ -221,7 +246,7 @@ def main(argv: list[str]) -> int:
         print("no valid rows; expected header tp,fp,tn,fn", file=sys.stderr)
         return 1
     for i, r in enumerate(results):
-        print(f"--- cutoff row {i + 1} (n={r['n']}, prevalence={r['prevalence']:.3f}, "
+        print(f"--- cutoff row {i + 1} (n={r['n']}, prevalence={shown(r['prevalence'])}, "
               f"{r['interval_method']} intervals)")
         print("  sensitivity  ", _fmt(r["sensitivity"]))
         print("  specificity  ", _fmt(r["specificity"]))
@@ -229,12 +254,12 @@ def main(argv: list[str]) -> int:
         print("  NPV          ", _fmt(r["npv"]))
         print(f"  LR+ {_fmt_ci(r['lr_positive_ci'], r['lr_positive'])}   "
               f"LR- {_fmt_ci(r['lr_negative_ci'], r['lr_negative'])}   "
-              f"Youden J {r['youden_j']}")
+              f"Youden J {shown(r['youden_j'], 4)}")
         for wmsg in r["warnings"]:
             print(f"  warning: {wmsg}")
     print("```review")
-    print(json.dumps({"gate": "medical-stats/diag_stats", "rows": results},
-                     ensure_ascii=False, indent=1))
+    print(json.dumps(json_safe({"gate": "medical-stats/diag_stats", "rows": results}),
+                     ensure_ascii=False, indent=1, allow_nan=False))
     print("```")
     return 0
 

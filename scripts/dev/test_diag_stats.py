@@ -154,6 +154,25 @@ class Output(unittest.TestCase):
         self.assertNotIn("--exact", warnings)
         self.assertIn("exact (Clopper-Pearson)", warnings)
 
+    def test_an_empty_table_still_prints_valid_json(self):
+        # Found by probing the installed app: an all-zero 2x2 left prevalence,
+        # the intervals and Youden's J as NaN. json.dumps writes that happily
+        # and json.loads accepts it, but NaN is not JSON — one undefined
+        # estimate made the whole review block unreadable to a strict consumer.
+        code, payload, out = self.run_main("tp,fp,tn,fn\n0,0,0,0\n")
+        self.assertEqual(code, 0)
+
+        def reject(constant):
+            raise AssertionError(f"non-finite number in the review block: {constant}")
+
+        review = out.split("```review")[1].split("```")[0]
+        json.loads(review, parse_constant=reject)
+        row = payload["rows"][0]
+        self.assertIsNone(row["prevalence"])
+        self.assertIsNone(row["youden_j"])
+        self.assertEqual(row["sensitivity"], [None, None, None])
+        self.assertIn("prevalence=n/a", out)
+
     def test_usage_error_returns_two(self):
         self.assertEqual(ds.main([]), 2)
 

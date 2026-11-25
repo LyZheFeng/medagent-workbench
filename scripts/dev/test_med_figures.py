@@ -329,6 +329,25 @@ class DiagnosticTableCli(unittest.TestCase):
             width, _ = png_size(out)
             self.assertGreater(width, 1700)  # 183 mm at 300 dpi is ~2161 px
 
+    def test_a_table_with_no_positives_still_prints_valid_json(self):
+        # Found by probing the installed app: tp=fn=0 leaves sensitivity as NaN,
+        # which json.dumps writes and json.loads accepts, but is not JSON — a
+        # strict consumer rejects the whole review block over one undefined
+        # estimate. The warning already says the group is empty.
+        path = self.write_2x2("tp,fp,tn,fn\n0,10,10,0\n", "no_positives.csv")
+        out = os.path.join(self.dir, "no_positives.png")
+        code, stdout, err = run_main(["table", path, "--out", out])
+        self.assertEqual(code, 0 if HAVE_MPL else 3, err)
+
+        def reject(constant):
+            raise AssertionError(f"non-finite number in the review block: {constant}")
+
+        payload = json.loads(stdout.split("```review")[1].split("```")[0],
+                            parse_constant=reject)
+        self.assertIsNone(payload["estimates"]["sensitivity"])
+        self.assertIsNotNone(payload["estimates"]["specificity"])
+        self.assertIn("sensitivity n/a", stdout)
+
     def test_columns_can_be_renamed(self):
         path = self.write_2x2("pos,neg,true_neg,false_neg\n10,2,20,1\n",
                               "renamed.csv")
