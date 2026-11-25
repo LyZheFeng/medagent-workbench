@@ -1,5 +1,4 @@
 import {
-  useCallback,
   useEffect,
   useMemo,
   useRef,
@@ -25,8 +24,7 @@ import {
   Zap,
 } from "lucide-react";
 import { agentForTurn, useRuntimeStore, type AcpOptionsProbe } from "@/lib/runtime";
-import { useTransientScrollbar } from "@/lib/transientScrollbar";
-import { useHorizontalWheel } from "@/lib/horizontalWheel";
+import { useScrollStrip } from "@/lib/horizontalWheel";
 import { useIsMobile } from "@/lib/useIsMobile";
 import { useAgentChoices } from "@/lib/agentChoices";
 import { accountKindOf, accountLabel, splitAgentId, useAccountsStore, withAccount } from "@/lib/agentAccounts";
@@ -343,15 +341,9 @@ export function ModelPicker({
   const rootRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
   // The chip strip scrolls sideways; give it a wheel, and a bar while it moves.
-  const chipBar = useTransientScrollbar();
-  const chipWheel = useHorizontalWheel();
-  const chipStripRef = useCallback(
-    (el: HTMLDivElement | null) => {
-      chipBar(el);
-      chipWheel(el);
-    },
-    [chipBar, chipWheel],
-  );
+  const chipStripRef = useScrollStrip();
+  const agentStripRef = useScrollStrip();
+  const accountStripRef = useScrollStrip();
 
   const options = useMemo(() => flattenModelOptions(providers), [providers]);
   const variantsByKey = useMemo(() => {
@@ -920,7 +912,12 @@ export function ModelPicker({
           </span>
         </>
       ) : (
-        <div role="tablist" aria-label={t("composer.agent.aria")} className="no-scrollbar flex min-w-0 flex-1 gap-4 overflow-x-auto">
+        <div
+          ref={agentStripRef}
+          role="tablist"
+          aria-label={t("composer.agent.aria")}
+          className="flex min-w-0 flex-1 gap-4 scrollbar-transient overflow-x-auto"
+        >
           {choices.map((c) => {
             const selected = c.id === baseAgent;
             return (
@@ -1034,9 +1031,10 @@ export function ModelPicker({
     <div className="flex shrink-0 items-center gap-3 border-b border-faint px-3 py-2">
       <span className="shrink-0 text-[11px] text-muted">{t("composer.agent.accountAria")}</span>
       <div
+        ref={accountStripRef}
         role="radiogroup"
         aria-label={t("composer.agent.accountAria")}
-        className="no-scrollbar flex min-w-0 flex-1 gap-1 overflow-x-auto"
+        className="flex min-w-0 flex-1 gap-1 scrollbar-transient overflow-x-auto"
       >
         {[null, ...(accounts?.accounts ?? []).map((a) => a.id)].map((id) => {
           const selected = (split?.account ?? null) === id;

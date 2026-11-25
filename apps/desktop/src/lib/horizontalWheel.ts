@@ -1,4 +1,5 @@
 import { useCallback, useRef } from "react";
+import { useTransientScrollbar } from "./transientScrollbar";
 
 /**
  * Let a plain mouse wheel scroll a horizontal strip.
@@ -36,4 +37,23 @@ export function useHorizontalWheel(): (el: HTMLElement | null) => void {
     el.addEventListener("wheel", onWheel, { passive: false });
     cleanup.current = () => el.removeEventListener("wheel", onWheel);
   }, []);
+}
+
+/**
+ * A horizontally scrolling strip, wired the way every such strip in this app
+ * should be: reachable by a mouse wheel, and a bar that appears while it moves
+ * rather than sitting there as a second border.
+ *
+ * One hook per strip — the callbacks it returns each own a single element.
+ */
+export function useScrollStrip(): (el: HTMLElement | null) => void {
+  const bar = useTransientScrollbar();
+  const wheel = useHorizontalWheel();
+  return useCallback(
+    (el: HTMLElement | null) => {
+      bar(el);
+      wheel(el);
+    },
+    [bar, wheel],
+  );
 }
