@@ -75,7 +75,7 @@ pnpm --filter @ai4s/desktop tauri dev
   风格 / 模型,模型留空则保存密钥时探测);已有供应商的旧安装不会看到向导
 - **Windows 安装包内置医学 Python 运行时**:CPython 3.12 + matplotlib / numpy /
   openpyxl / python-docx / python-pptx / pypdf / pdfplumber 随包提供,OpenCode
-  的 `python` 指向它。安装后只需配置模型 key,5 个确定性脚本、图表、Word/Excel
+  的 `python` 指向它。安装后只需配置模型 key,6 个确定性脚本、图表、Word/Excel
   基础能力即可使用(Excel 公式重算与 Office→PDF 仍需 LibreOffice)
 - **移除内置 OpenCode Zen 免费模型**:运行时仍会把它报给应用,但 provider 列表
   入口统一过滤;首次启动、设置和模型选择器都不再出现,用户必须配置自己的模型 API

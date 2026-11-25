@@ -1,5 +1,5 @@
-// Tauri commands over `osd_core::model_probe`. Both probes are blocking HTTP
-// calls to a possibly-unreachable host, so both run off the UI thread.
+// Tauri commands over `osd_core::model_probe`. The probe is a blocking HTTP
+// call to a possibly-unreachable host, so it runs off the UI thread.
 use osd_core::model_probe::ProbeResult;
 
 #[tauri::command]
@@ -13,13 +13,6 @@ pub async fn probe_endpoint_models(
     })
     .await
     .map_err(|e| format!("model probe task failed: {e}"))?
-}
-
-#[tauri::command]
-pub async fn zen_models() -> Result<Vec<String>, String> {
-    tauri::async_runtime::spawn_blocking(osd_core::model_probe::fetch_zen_models)
-        .await
-        .map_err(|e| format!("zen model list task failed: {e}"))?
 }
 
 // The model catalog: status is a cheap local read; refresh downloads (up to

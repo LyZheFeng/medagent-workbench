@@ -246,7 +246,6 @@ pub fn run() {
             runtime::runtime_failure,
             runtime::take_config_quarantine_notice,
             model_probe::probe_endpoint_models,
-            model_probe::zen_models,
             model_probe::model_catalog_status,
             model_probe::model_catalog_refresh,
             model_probe::model_catalog_apply,

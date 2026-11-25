@@ -1414,10 +1414,6 @@ fn v1(stream: &mut TcpStream, req: &Request, ctx: &Ctx, rest: &str, who: &Princi
                 Err(e) => respond_json(stream, 404, &err_json(&e)),
             }
         }
-        // Which models OpenCode Zen still serves. The browser cannot ask
-        // opencode.ai itself (no CORS headers), so the web client asks us and
-        // gets the identical list the desktop picker filters by. Carries no
-        // credentials in either direction.
         (_, ["terminals", id, ..]) => terminal_route(stream, req, ctx, id, &segs[2..], who),
         ("GET", ["mux"]) => mux_open(stream, ctx),
         ("POST", ["mux", id]) => mux_change(stream, req, ctx, id, who),
@@ -1551,13 +1547,6 @@ fn v1(stream: &mut TcpStream, req: &Request, ctx: &Ctx, rest: &str, who: &Princi
                 respond_json(stream, 200, &payload.to_string());
             }
             Err(e) => respond_json(stream, 500, &err_json(&e)),
-        },
-        ("GET", ["zen-models"]) => match crate::model_probe::fetch_zen_models() {
-            Ok(ids) => {
-                let payload = serde_json::json!({ "models": ids });
-                respond_json(stream, 200, &payload.to_string());
-            }
-            Err(e) => respond_json(stream, 502, &err_json(&e)),
         },
         ("GET", ["events"]) => {
             let dir = ws_dir(ctx);
