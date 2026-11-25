@@ -307,6 +307,8 @@
     "loginDidNotComplete": "La connexion ne s'est pas terminée",
     "couldNotRemove": "Impossible de supprimer",
     "providerRemoved": "{{providerID}} supprimé",
+    "providerKeptByEnv": "{{providerID}} n'a pas été supprimé : il reste connecté via la variable d'environnement système {{env}}. Supprimez cette variable et redémarrez l'application.",
+    "providerKeptByCatalog": "{{providerID}} n'a pas été supprimé : le runtime le propose toujours. Ses identifiants se trouvent hors de l'application (variable d'environnement ou connexion OpenCode existante).",
     "couldNotAddEndpoint": "Impossible d'ajouter le point de terminaison",
     "couldNotFetchModels": "Impossible de récupérer les modèles depuis le point de terminaison",
     "baseUrlCorrected": "URL de base corrigée en {{url}}",

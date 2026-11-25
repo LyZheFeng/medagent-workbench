@@ -306,6 +306,8 @@
     "loginDidNotComplete": "登录未完成",
     "couldNotRemove": "无法移除",
     "providerRemoved": "{{providerID}} 已移除",
+    "providerKeptByEnv": "未能移除 {{providerID}}：它仍通过系统环境变量 {{env}} 连接，工作台不能删除系统环境变量。删除该变量并重启工作台后它才会消失。",
+    "providerKeptByCatalog": "未能移除 {{providerID}}：运行时仍提供它，凭据在工作台之外（系统环境变量，或 OpenCode 已有的登录）。",
     "couldNotAddEndpoint": "无法添加端点",
     "couldNotFetchModels": "无法从端点获取模型",
     "baseUrlCorrected": "Base URL 已补全为 {{url}}",

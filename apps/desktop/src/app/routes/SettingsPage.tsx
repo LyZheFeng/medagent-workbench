@@ -716,6 +716,38 @@ function SettingsPageContent() {
       setCodeInput("");
     });
 
+  /**
+   * Say what actually happened, not what we asked for.
+   *
+   * Removing a provider clears everything the app owns: the auth entry, the OS
+   * credential, the config block. A provider can survive all three, because the
+   * sidecar also reads keys from its own environment (`DEEPSEEK_API_KEY`,
+   * `DASHSCOPE_API_KEY`, …) and an app cannot delete a system environment
+   * variable. Toasting "removed" there leaves the row on screen with no way to
+   * find out why, so ask the runtime what it still offers and report that.
+   */
+  const reportProviderRemoval = async (providerID: string) => {
+    let remaining: ProviderInfo[] | null = null;
+    try {
+      remaining = await getClient()!.listProviders();
+    } catch {
+      // The probe is a courtesy: a runtime that cannot answer must not turn a
+      // successful cleanup into an error message.
+    }
+    if (!remaining?.some((p) => p.id === providerID)) {
+      toast.success(t("toast.providerRemoved", { providerID }));
+      return;
+    }
+    // Name the variable when the catalog knows it — "remove DEEPSEEK_API_KEY"
+    // is actionable in a way "could not remove" is not.
+    const env = catalog.find((c) => c.id === providerID)?.env ?? [];
+    toast.error(
+      env.length > 0
+        ? t("toast.providerKeptByEnv", { providerID, env: env.join(" / ") })
+        : t("toast.providerKeptByCatalog", { providerID }),
+    );
+  };
+
   const disconnectProvider = (providerID: string) =>
     run(t("toast.couldNotRemove"), async () => {
       const custom = customIds.includes(providerID);
@@ -755,7 +787,7 @@ function SettingsPageContent() {
       } catch (e) {
         void logDebug(`[provider] post-remove probe failed: ${e instanceof Error ? e.message : String(e)}`);
       }
-      toast.success(t("toast.providerRemoved", { providerID }));
+      await reportProviderRemoval(providerID);
     });
 
   // Ask the endpoint itself which models it serves (and their context windows

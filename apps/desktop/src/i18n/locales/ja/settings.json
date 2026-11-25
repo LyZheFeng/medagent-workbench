@@ -306,6 +306,8 @@
     "loginDidNotComplete": "ログインが完了しませんでした",
     "couldNotRemove": "削除できませんでした",
     "providerRemoved": "{{providerID}} を削除しました",
+    "providerKeptByEnv": "{{providerID}} は削除されませんでした。システム環境変数 {{env}} 経由で接続されたままです。この変数を削除してワークベンチを再起動してください。",
+    "providerKeptByCatalog": "{{providerID}} は削除されませんでした。ランタイムが引き続き提供しています。認証情報はワークベンチの外（環境変数、または既存の OpenCode ログイン）にあります。",
     "couldNotAddEndpoint": "エンドポイントを追加できませんでした",
     "couldNotFetchModels": "エンドポイントからモデルを取得できませんでした",
     "baseUrlCorrected": "Base URL を {{url}} に修正しました",

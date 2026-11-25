@@ -331,6 +331,8 @@
     "loginDidNotComplete": "Login did not complete",
     "couldNotRemove": "Could not remove",
     "providerRemoved": "{{providerID}} removed",
+    "providerKeptByEnv": "{{providerID}} was not removed: it is still connected through the system environment variable {{env}}. Delete that variable and restart the workbench.",
+    "providerKeptByCatalog": "{{providerID}} was not removed: the runtime still offers it, and its credentials live outside the workbench (an environment variable, or a login OpenCode already holds).",
     "couldNotAddEndpoint": "Could not add the endpoint",
     "couldNotFetchModels": "Could not fetch models from the endpoint",
     "baseUrlCorrected": "Base URL corrected to {{url}}",

@@ -307,6 +307,8 @@
     "loginDidNotComplete": "El inicio de sesión no se completó",
     "couldNotRemove": "No se pudo quitar",
     "providerRemoved": "{{providerID}} eliminado",
+    "providerKeptByEnv": "No se eliminó {{providerID}}: sigue conectado mediante la variable de entorno del sistema {{env}}. Elimine esa variable y reinicie la aplicación.",
+    "providerKeptByCatalog": "No se eliminó {{providerID}}: el entorno de ejecución sigue ofreciéndolo. Sus credenciales están fuera de la aplicación (variable de entorno o un inicio de sesión de OpenCode).",
     "couldNotAddEndpoint": "No se pudo añadir el endpoint",
     "couldNotFetchModels": "No se pudieron obtener los modelos del endpoint",
     "baseUrlCorrected": "URL base corregida a {{url}}",

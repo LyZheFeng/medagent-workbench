@@ -307,6 +307,8 @@
     "loginDidNotComplete": "Die Anmeldung wurde nicht abgeschlossen",
     "couldNotRemove": "Entfernen nicht möglich",
     "providerRemoved": "{{providerID}} entfernt",
+    "providerKeptByEnv": "{{providerID}} wurde nicht entfernt: weiterhin über die Systemumgebungsvariable {{env}} verbunden. Diese Variable löschen und die Workbench neu starten.",
+    "providerKeptByCatalog": "{{providerID}} wurde nicht entfernt: die Laufzeit bietet es weiterhin an. Die Zugangsdaten liegen außerhalb der Workbench (Umgebungsvariable oder eine bestehende OpenCode-Anmeldung).",
     "couldNotAddEndpoint": "Der Endpunkt konnte nicht hinzugefügt werden",
     "couldNotFetchModels": "Modelle konnten nicht vom Endpunkt abgerufen werden",
     "baseUrlCorrected": "Basis-URL korrigiert auf {{url}}",

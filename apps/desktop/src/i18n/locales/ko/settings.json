@@ -306,6 +306,8 @@
     "loginDidNotComplete": "로그인이 완료되지 않았습니다",
     "couldNotRemove": "제거할 수 없습니다",
     "providerRemoved": "{{providerID}} 제거됨",
+    "providerKeptByEnv": "{{providerID}}을(를) 제거하지 못했습니다. 시스템 환경 변수 {{env}}을(를) 통해 계속 연결되어 있습니다. 해당 변수를 삭제한 뒤 워크벤치를 다시 시작하세요.",
+    "providerKeptByCatalog": "{{providerID}}을(를) 제거하지 못했습니다. 런타임이 여전히 제공하고 있으며 자격 증명이 워크벤치 밖(환경 변수 또는 기존 OpenCode 로그인)에 있습니다.",
     "couldNotAddEndpoint": "엔드포인트를 추가할 수 없습니다",
     "couldNotFetchModels": "엔드포인트에서 모델을 가져올 수 없습니다",
     "baseUrlCorrected": "Base URL을 {{url}}(으)로 수정했습니다",
