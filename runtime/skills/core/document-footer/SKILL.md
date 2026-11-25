@@ -1,6 +1,6 @@
 ---
 name: document-footer
-description: Use after generating a .docx or .xlsx for the user - a case report, an exported table, a paper draft. Stamps the bilingual research/teaching boundary into the document's own footer (every .docx section that has one; every .xlsx sheet's print footer) with a stdlib script, and emits the app's review block. Idempotent: a second run leaves the file byte-identical. Does not cover PDF, .pptx, images or DICOM, and does not judge consent.
+description: Use after generating a .docx or .xlsx for the user - a case report, an exported table, a paper draft. Stamps the bilingual research/teaching boundary into the document's own footer (every .docx section that has one; every .xlsx sheet's print footer) with a stdlib script, and emits the app's review block. Idempotent - a second run leaves the file byte-identical. Does not cover PDF, .pptx, images or DICOM, and does not judge consent.
 ---
 
 # Document footer (medical boundary)
