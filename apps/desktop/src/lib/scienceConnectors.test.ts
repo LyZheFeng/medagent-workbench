@@ -103,13 +103,13 @@ describe("connectorConfig", () => {
     expect(disciplines.has("genomics")).toBe(true);
   });
 
-  it("pins the medical packages whose answers end up in a methods statement", () => {
-    // openfda-mcp asks researchers to pin it for reproducibility, and both it
-    // and pubmedmcp have released once or twice: an unpinned install means a
-    // later run resolves identifiers through a different version.
-    for (const id of ["openfda", "pubmedmcp"]) {
-      const c = byId(id);
-      if (c.type === "remote") throw new Error(`${id} should be a local connector`);
+  it("pins every local connector to the set verified together (2026-11-25)", () => {
+    // All five share one env. An unpinned install means a later run resolves a
+    // different server, and the MCP SDK below it, than the one that was tested;
+    // these are the versions that started and answered tools/list with mcp<2.
+    const local = SCIENCE_CONNECTORS.filter((c) => c.type !== "remote");
+    expect(local.length).toBe(5);
+    for (const c of local) {
       expect(c.pkg).toMatch(/==\d+\.\d+\.\d+$/);
     }
   });

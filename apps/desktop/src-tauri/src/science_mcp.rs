@@ -16,6 +16,22 @@ fn env_dir(app: &AppHandle) -> Result<PathBuf, String> {
         .join("science-mcp-env"))
 }
 
+/// The MCP Python SDK 2.x removed `mcp.server.fastmcp`, which pubmedmcp,
+/// geo-mcp and paper-search-mcp still import; biomcp already pins `<2`. All
+/// five connectors share one env, so the pin is applied as an install-time
+/// constraint rather than per package: without it, installing pubmedmcp first
+/// resolves mcp 2.x and the server dies at startup with ModuleNotFoundError.
+/// Measured 2026-11-25: with this constraint all five start and answer
+/// `tools/list` (pubmedmcp 1 tool, openfda 7, geo-mcp 11, paper-search 57,
+/// biomcp 36).
+const MCP_CONSTRAINTS: &str = "mcp<2\n";
+
+fn write_constraints(dir: &PathBuf) -> Result<PathBuf, String> {
+    let path = dir.join("constraints.txt");
+    std::fs::write(&path, MCP_CONSTRAINTS).map_err(|e| e.to_string())?;
+    Ok(path)
+}
+
 /// Absolute path to the managed interpreter in the shared science-MCP env.
 fn python_bin(app: &AppHandle) -> Result<PathBuf, String> {
     let dir = env_dir(app)?;
@@ -58,6 +74,7 @@ pub async fn setup_science_mcp(app: AppHandle, package: String) -> Result<String
     if !py.exists() {
         crate::uv::create_venv(&app, "science", &dir).await?;
     }
+    let constraints = write_constraints(&dir)?;
     crate::uv::run_uv(
         &app,
         "science",
@@ -66,6 +83,8 @@ pub async fn setup_science_mcp(app: AppHandle, package: String) -> Result<String
             "install".into(),
             "--python".into(),
             py.to_string_lossy().to_string(),
+            "--constraint".into(),
+            constraints.to_string_lossy().to_string(),
             package,
         ],
         "uv pip install",
@@ -86,7 +105,7 @@ fn is_safe_package(pkg: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::is_safe_package;
+    use super::{is_safe_package, write_constraints, MCP_CONSTRAINTS};
 
     #[test]
     fn accepts_real_package_names_and_pins() {
@@ -103,5 +122,15 @@ mod tests {
         assert!(!is_safe_package("pkg && echo"));
         assert!(!is_safe_package("pkg --index-url http://evil"));
         assert!(!is_safe_package("pkg\nother"));
+    }
+
+    #[test]
+    fn the_shared_env_pins_the_mcp_sdk_below_two() {
+        assert_eq!(MCP_CONSTRAINTS, "mcp<2\n");
+        let dir = std::env::temp_dir().join(format!("osd-conn-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = write_constraints(&dir).unwrap();
+        assert_eq!(std::fs::read_to_string(&path).unwrap(), "mcp<2\n");
+        std::fs::remove_dir_all(&dir).ok();
     }
 }

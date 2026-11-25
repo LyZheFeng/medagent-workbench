@@ -68,7 +68,7 @@ export const SCIENCE_CONNECTORS: ScienceConnector[] = [
     discipline: "all fields",
     description:
       "Cross-server discovery — arXiv · Crossref · Semantic Scholar · bioRxiv/medRxiv, plus PubMed; search & fetch papers",
-    pkg: "paper-search-mcp",
+    pkg: "paper-search-mcp==0.1.4",
     module: "paper_search_mcp.server",
     source: "github.com/openags/paper-search-mcp",
   },
@@ -78,7 +78,7 @@ export const SCIENCE_CONNECTORS: ScienceConnector[] = [
     discipline: "medicine",
     description:
       "ClinicalTrials.gov trials and genomic variants (MyVariant/ClinVar), with PubMed abstracts alongside",
-    pkg: "biomcp-python",
+    pkg: "biomcp-python==0.7.3",
     module: "biomcp",
     args: ["run"],
     source: "github.com/genomoncology/biomcp",
@@ -89,7 +89,7 @@ export const SCIENCE_CONNECTORS: ScienceConnector[] = [
     discipline: "genomics",
     description:
       "Search and retrieve gene expression / functional genomics datasets, series, samples, and platforms from NCBI GEO via E-utils",
-    pkg: "geo-mcp",
+    pkg: "geo-mcp==0.1.2",
     bin: "geo-mcp",
     apiKeyEnv: "GEOMCP_EMAIL",
     apiKeyRequired: true,
