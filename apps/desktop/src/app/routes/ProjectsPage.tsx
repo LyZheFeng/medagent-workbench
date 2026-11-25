@@ -73,7 +73,7 @@ export function ProjectsPage() {
         const latest = projectSessions[0]?.updated ?? 0;
         return { ...p, sessions: projectSessions, updated: Math.max(latest, p.createdAt) };
       })
-      .filter((p) => !q || p.name.toLowerCase().includes(q))
+      .filter((p) => !q || (p.name ?? "").toLowerCase().includes(q))
       .sort((a, b) => b.updated - a.updated);
   }, [projects, sessionsByPath, query]);
 

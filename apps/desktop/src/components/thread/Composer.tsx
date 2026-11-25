@@ -341,11 +341,11 @@ export function Composer({
   const query = slashTyping ? value.slice(1).toLowerCase() : "";
   const matches = slashTyping
     ? allCommands
-        .filter((c) => c.name.toLowerCase().includes(query))
+        .filter((c) => (c.name ?? "").toLowerCase().includes(query))
         .sort(
           (a, b) =>
-            Number(b.name.toLowerCase().startsWith(query)) -
-            Number(a.name.toLowerCase().startsWith(query)),
+            Number((b.name ?? "").toLowerCase().startsWith(query)) -
+            Number((a.name ?? "").toLowerCase().startsWith(query)),
         )
     : [];
   const paletteOpen = matches.length > 0 && !paletteClosed && !disabled;

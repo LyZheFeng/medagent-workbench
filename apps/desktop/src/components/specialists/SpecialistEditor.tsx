@@ -632,7 +632,10 @@ function SkillScope({
     })),
     ...[...skills].sort((a, b) => a.name.localeCompare(b.name)),
   ].filter(
-    (s) => !needle || s.name.toLowerCase().includes(needle) || s.description.toLowerCase().includes(needle),
+    (s) =>
+      !needle ||
+      (s.name ?? "").toLowerCase().includes(needle) ||
+      (s.description ?? "").toLowerCase().includes(needle),
   );
 
   const toggle = (name: string) => {

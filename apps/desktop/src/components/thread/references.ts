@@ -115,7 +115,7 @@ export function matchSessions(
 ): SessionMeta[] {
   return sessions
     .filter((s) => !s.parentId && s.id !== currentId)
-    .filter((s) => !query || s.title.toLowerCase().includes(query))
+    .filter((s) => !query || (s.title ?? "").toLowerCase().includes(query))
     .sort((a, b) => (b.updated ?? 0) - (a.updated ?? 0))
     .slice(0, limit);
 }

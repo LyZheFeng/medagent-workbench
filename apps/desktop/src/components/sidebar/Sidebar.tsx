@@ -500,7 +500,9 @@ export function Sidebar({ project }: { project: Project }) {
   const allRows = [...Array.from(sessionsByProject.values()).flat(), ...looseRows, ...exampleRows];
   const searchResults = searching
     ? allRows.filter(
-        (r) => r.title.toLowerCase().includes(needle) || (r.project ?? "").toLowerCase().includes(needle),
+        // A session that has not been titled yet reaches this row list with no
+        // title at all; searching used to throw on it instead of missing.
+        (r) => (r.title ?? "").toLowerCase().includes(needle) || (r.project ?? "").toLowerCase().includes(needle),
       )
     : [];
 

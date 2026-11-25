@@ -135,7 +135,10 @@ export function SkillsPage() {
   const agentRows = entries.filter((e) => e.kind === "agent" && !specialistIds.has(e.name));
   const needle = query.trim().toLowerCase();
   const specialistRows = specialists.filter(
-    (s) => !needle || s.id.includes(needle) || s.description.toLowerCase().includes(needle),
+    (s) =>
+      !needle ||
+      s.id.includes(needle) ||
+      (s.description ?? "").toLowerCase().includes(needle),
   );
 
   return (
