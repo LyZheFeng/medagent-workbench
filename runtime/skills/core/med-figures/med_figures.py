@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Medical publication figures from data: ROC, forest, Kaplan-Meier,
-Bland-Altman, and STROBE/PRISMA/CONSORT flow diagrams.
+Bland-Altman, the diagnostic 2x2 table, and STROBE/PRISMA/CONSORT flow
+diagrams.
 
 The numbers are computed here, in stdlib, so they can be checked and so the
 script still reports them when matplotlib is missing; matplotlib only draws.
@@ -14,7 +15,8 @@ script exists to prevent.
 Chart forms follow the med-figures skill: ROC with an AUC confidence interval,
 a forest plot with a heterogeneity footnote, Kaplan-Meier with a number-at-risk
 table and the log-rank p, Bland-Altman with the bias and limits of agreement,
-and the three reporting-guideline flow diagrams. The style is
+the 2x2 diagnostic table with its accuracy measures and intervals, and the
+three reporting-guideline flow diagrams. The style is
 publication-figures/openscience.mplstyle, resolved beside this skill's
 directory; journal column widths are in millimetres.
 
@@ -23,6 +25,7 @@ Usage:
     python med_figures.py forest studies.csv [--measure rr|or|hr|md] [--model random|fixed]
     python med_figures.py km survival.csv [--time col] [--event col] [--group col] [--times 0,12,24]
     python med_figures.py bland-altman pairs.csv [--a col] [--b col]
+    python med_figures.py table 2x2.csv [--tp tp] [--fp fp] [--tn tn] [--fn fn]
     python med_figures.py flow flow.json [--design strobe|prisma|consort]
     python med_figures.py flow --example prisma        # print a filled template
     python med_figures.py km data.csv --out figures/km.png --vector
@@ -631,6 +634,92 @@ def bland_altman_analysis(a: list[float], b: list[float]) -> dict:
         "bias_ci": (bias - Z * se_bias, bias + Z * se_bias),
         "loa_ci": ((loa_low - Z * se_loa, loa_low + Z * se_loa),
                    (loa_high - Z * se_loa, loa_high + Z * se_loa)),
+        "warnings": warnings,
+    }
+
+
+# --------------------------------------------------------------------------- #
+# Diagnostic 2x2 table
+# --------------------------------------------------------------------------- #
+
+
+def _prop(k: int, n: int) -> tuple[float, float, float]:
+    return wilson(k, n) if n else (float("nan"), float("nan"), float("nan"))
+
+
+def _lr_intervals(tp: int, fp: int, tn: int, fn: int, sens: float,
+                  spec: float) -> tuple[tuple[float, float] | None,
+                                         tuple[float, float] | None]:
+    """95% CIs for LR+ / LR- on the log scale (Simel 1991).
+
+    Same rule as diag_stats.py: a likelihood ratio is a ratio, so the interval
+    is asymmetric and belongs on log(LR). A zero cell leaves it undefined; no
+    0.5 correction is applied, because that would change the estimate.
+    """
+    n1 = tp + fn  # diseased
+    n0 = tn + fp  # non-diseased
+    if n1 == 0 or n0 == 0 or not (0.0 < sens < 1.0) or not (0.0 < spec < 1.0):
+        return (None, None)
+    se_pos = math.sqrt((1 - sens) / (sens * n1) + spec / ((1 - spec) * n0))
+    log_pos = math.log(sens) - math.log(1 - spec)
+    pos = (math.exp(log_pos - Z * se_pos), math.exp(log_pos + Z * se_pos))
+    se_neg = math.sqrt(sens / ((1 - sens) * n1) + (1 - spec) / (spec * n0))
+    log_neg = math.log(1 - sens) - math.log(spec)
+    neg = (math.exp(log_neg - Z * se_neg), math.exp(log_neg + Z * se_neg))
+    return (pos, neg)
+
+
+def table_analysis(tp: int, fp: int, tn: int, fn: int) -> dict:
+    """Accuracy measures from one 2x2 table, with Wilson intervals."""
+    if min(tp, fp, tn, fn) < 0:
+        raise FigureError("2x2 counts cannot be negative")
+    n = tp + fp + tn + fn
+    if n == 0:
+        raise FigureError("the 2x2 table is empty (all counts are zero)")
+    sens = _prop(tp, tp + fn)
+    spec = _prop(tn, tn + fp)
+    ppv = _prop(tp, tp + fp)
+    npv = _prop(tn, tn + fn)
+    acc = _prop(tp + tn, n)
+    lr_p = (sens[0] / (1 - spec[0])
+            if math.isfinite(sens[0]) and math.isfinite(spec[0]) and spec[0] < 1
+            else None)
+    lr_n = ((1 - sens[0]) / spec[0]
+            if math.isfinite(sens[0]) and math.isfinite(spec[0]) and spec[0] > 0
+            else None)
+    lr_p_ci, lr_n_ci = _lr_intervals(
+        tp, fp, tn, fn,
+        sens[0] if math.isfinite(sens[0]) else 0.0,
+        spec[0] if math.isfinite(spec[0]) else 0.0,
+    )
+    warnings = []
+    if min(tp, fp, tn, fn) < 5:
+        warnings.append("a 2x2 cell has <5 events; Wilson intervals are "
+                        "optimistic there (diag_stats.py --exact gives "
+                        "Clopper-Pearson)")
+    if tp + fn == 0 or tn + fp == 0:
+        warnings.append("sensitivity or specificity undefined (no participants "
+                        "in that group)")
+    if tp + fp == 0 or tn + fn == 0:
+        warnings.append("PPV or NPV undefined (a test-result row is empty)")
+    if lr_p_ci is None:
+        warnings.append("likelihood-ratio CIs undefined (a cell is zero); no 0.5 "
+                        "correction is applied")
+    return {
+        "n": n,
+        "counts": {"tp": tp, "fp": fp, "tn": tn, "fn": fn},
+        "prevalence": (tp + fn) / n,
+        "metrics": {
+            "sensitivity": sens,
+            "specificity": spec,
+            "ppv": ppv,
+            "npv": npv,
+            "accuracy": acc,
+        },
+        "lr_positive": lr_p,
+        "lr_negative": lr_n,
+        "lr_positive_ci": lr_p_ci,
+        "lr_negative_ci": lr_n_ci,
         "warnings": warnings,
     }
 
@@ -1382,6 +1471,79 @@ def render_bland_altman(plt, analysis: dict, out: Path, vector: bool,
     return _save(plt, fig, out, vector)
 
 
+def _ci_text(estimate: float | None,
+             ci: tuple[float, float] | None) -> tuple[str, str]:
+    if estimate is None or not math.isfinite(estimate):
+        return ("undefined", "-")
+    if ci is None or not all(math.isfinite(x) for x in ci):
+        return (f"{estimate:.3f}", "undefined")
+    return (f"{estimate:.3f}", f"{ci[0]:.3f}-{ci[1]:.3f}")
+
+
+def render_table(plt, analysis: dict, out: Path, vector: bool, width_mm: float,
+                 title: str, test_label: str, reference_label: str) -> list[dict]:
+    """Draw the 2x2 counts and the accuracy measures as one publication table."""
+    counts = analysis["counts"]
+    tp, fp, tn, fn = counts["tp"], counts["fp"], counts["tn"], counts["fn"]
+    n = analysis["n"]
+    fig = plt.figure(figsize=(width_mm / 25.4, 4.6))
+    grid = fig.add_gridspec(2, 1, height_ratios=[0.9, 1.55], hspace=0.38)
+    ax = fig.add_subplot(grid[0, 0])
+    ax.set_axis_off()
+    ax.set_title(title, fontsize=10, color=INK, pad=6)
+    cells = [
+        ["", f"{reference_label} +", f"{reference_label} -", "Total"],
+        [f"{test_label} +", tp, fp, tp + fp],
+        [f"{test_label} -", fn, tn, fn + tn],
+        ["Total", tp + fn, fp + tn, n],
+    ]
+    tab = ax.table(cellText=[[str(c) for c in row] for row in cells],
+                   cellLoc="center", bbox=[0.04, 0.0, 0.92, 1.0])
+    tab.auto_set_font_size(False)
+    tab.set_fontsize(8.5)
+    for (row, col), cell in tab.get_celld().items():
+        cell.set_edgecolor(GRID)
+        cell.set_linewidth(0.8)
+        if row == 0 or col == 0:
+            cell.set_facecolor("#f6f3ed")
+        cell.set_text_props(weight="bold" if row == 0 or col == 0 else "normal",
+                            color=INK)
+    ax2 = fig.add_subplot(grid[1, 0])
+    ax2.set_axis_off()
+    body = [["Measure", "Estimate", "95% CI"]]
+    for label, key in (("Sensitivity", "sensitivity"),
+                       ("Specificity", "specificity"),
+                       ("PPV", "ppv"), ("NPV", "npv"),
+                       ("Accuracy", "accuracy")):
+        point, low, high = analysis["metrics"][key]
+        estimate, ci = _ci_text(point, (low, high))
+        body.append([label, estimate, ci])
+    for label, estimate, ci in (
+            ("LR+", analysis["lr_positive"], analysis["lr_positive_ci"]),
+            ("LR-", analysis["lr_negative"], analysis["lr_negative_ci"])):
+        if estimate is None or not math.isfinite(estimate):
+            body.append([label, "undefined", "-"])
+        elif ci is None:
+            body.append([label, f"{estimate:.2f}", "undefined"])
+        else:
+            body.append([label, f"{estimate:.2f}",
+                         f"{ci[0]:.2f}-{ci[1]:.2f}"])
+    tab2 = ax2.table(cellText=body, cellLoc="center", bbox=[0.02, 0.0, 0.96, 1.0])
+    tab2.auto_set_font_size(False)
+    tab2.set_fontsize(8)
+    for (row, _col), cell in tab2.get_celld().items():
+        cell.set_edgecolor(GRID)
+        cell.set_linewidth(0.6)
+        if row == 0:
+            cell.set_facecolor("#f6f3ed")
+        cell.set_text_props(weight="bold" if row == 0 else "normal", color=INK)
+    fig.text(0.01, 0.01,
+             f"Prevalence {analysis['prevalence']:.1%}. PPV/NPV depend on it and "
+             "do not transfer to another setting. Counts, not a diagnosis.",
+             fontsize=7, color=MUTED)
+    return _save(plt, fig, out, vector)
+
+
 # --------------------------------------------------------------------------- #
 # Commands
 # --------------------------------------------------------------------------- #
@@ -1413,6 +1575,10 @@ def _report(kind: str, table: Table | None, params: dict, estimates: dict,
             outputs = renderer(plt, analysis, out, vector, width_mm)
         elif kind == "km":
             outputs = renderer(plt, analysis, out, vector, width_mm, time_unit)
+        elif kind == "table":
+            outputs = renderer(plt, analysis, out, vector, width_mm,
+                               params["title"], params["test_label"],
+                               params["reference_label"])
         else:
             outputs = renderer(plt, analysis, out, vector, width_mm,
                                params["a_label"], params["b_label"])
@@ -1705,6 +1871,61 @@ def cmd_bland_altman(ns) -> int:
                    render_bland_altman, analysis)
 
 
+def _ci_list(t) -> list[float | None] | None:
+    if t is None or not all(math.isfinite(x) for x in t):
+        return None
+    return [_round(x) for x in t]
+
+
+def cmd_table(ns) -> int:
+    table = read_table(ns.csv, [ns.tp, ns.fp, ns.tn, ns.fn])
+    if table.n != 1:
+        raise FigureError(f"table draws one 2x2 table, but this CSV has "
+                          f"{table.n} rows; diag_stats.py handles several cutoffs")
+    row = table.rows[0]
+    line = table.line_offset
+    counts = {}
+    for key, column in (("tp", ns.tp), ("fp", ns.fp),
+                        ("tn", ns.tn), ("fn", ns.fn)):
+        value = num(row, column, line)
+        if (not math.isfinite(value) or value < 0
+                or abs(value - round(value)) > 1e-9):
+            raise FigureError(f"line {line}: {column} must be a non-negative "
+                              "whole number")
+        counts[key] = int(round(value))
+    analysis = table_analysis(**counts)
+    m = analysis["metrics"]
+    print(f"table: n={analysis['n']}, prevalence "
+          f"{analysis['prevalence']:.3f}")
+    print(f"  sensitivity {m['sensitivity'][0]:.3f} "
+          f"({m['sensitivity'][1]:.3f}-{m['sensitivity'][2]:.3f}), "
+          f"specificity {m['specificity'][0]:.3f} "
+          f"({m['specificity'][1]:.3f}-{m['specificity'][2]:.3f})")
+    for warning in analysis["warnings"]:
+        print(f"  warning: {warning}")
+    estimates = {
+        "n": analysis["n"],
+        "counts": analysis["counts"],
+        "prevalence": _round(analysis["prevalence"]),
+        "sensitivity": _ci_list(m["sensitivity"]),
+        "specificity": _ci_list(m["specificity"]),
+        "ppv": _ci_list(m["ppv"]),
+        "npv": _ci_list(m["npv"]),
+        "accuracy": _ci_list(m["accuracy"]),
+        "lr_positive": _round(analysis["lr_positive"]),
+        "lr_positive_ci": _ci_list(analysis["lr_positive_ci"]),
+        "lr_negative": _round(analysis["lr_negative"]),
+        "lr_negative_ci": _ci_list(analysis["lr_negative_ci"]),
+    }
+    params = {"columns": {"tp": ns.tp, "fp": ns.fp, "tn": ns.tn, "fn": ns.fn},
+              "test_label": ns.test_label,
+              "reference_label": ns.reference_label,
+              "title": ns.title, "width_mm": ns.width_mm}
+    out = Path(ns.out) if ns.out else _default_out(ns.csv, "table")
+    return _report("table", table, params, estimates, analysis["warnings"],
+                   out, ns.vector, ns.width_mm, render_table, analysis)
+
+
 # --------------------------------------------------------------------------- #
 # CLI
 # --------------------------------------------------------------------------- #
@@ -1714,8 +1935,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="med_figures.py",
         description="Medical publication figures: ROC, forest, Kaplan-Meier, "
-                    "Bland-Altman. Numbers are computed in stdlib; matplotlib "
-                    "only draws.",
+                    "Bland-Altman, and the diagnostic 2x2 table. Numbers are "
+                    "computed in stdlib; matplotlib only draws.",
     )
     sub = parser.add_subparsers(dest="kind", required=True)
 
@@ -1763,6 +1984,19 @@ def build_parser() -> argparse.ArgumentParser:
     ba.add_argument("--a-label", default="method A")
     ba.add_argument("--b-label", default="method B")
     ba.set_defaults(func=cmd_bland_altman, width_mm_default=89)
+
+    table = sub.add_parser("table", help="diagnostic 2x2 table figure")
+    common(table)
+    table.add_argument("--tp", default="tp", help="true-positive column")
+    table.add_argument("--fp", default="fp", help="false-positive column")
+    table.add_argument("--tn", default="tn", help="true-negative column")
+    table.add_argument("--fn", default="fn", help="false-negative column")
+    table.add_argument("--test-label", default="Index test",
+                       help="row label (the test being evaluated)")
+    table.add_argument("--reference-label", default="Reference standard",
+                       help="column label (the reference standard)")
+    table.add_argument("--title", default="Diagnostic accuracy (2x2)")
+    table.set_defaults(func=cmd_table, width_mm_default=183)
 
     flow = sub.add_parser(
         "flow", help="STROBE/PRISMA/CONSORT flow diagram with count checks")

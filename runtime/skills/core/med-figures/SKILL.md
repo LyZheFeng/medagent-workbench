@@ -1,12 +1,12 @@
 ---
 name: med-figures
-description: Use when generating figures for medical research — ROC curves with CIs, forest plots of effect sizes, Kaplan-Meier survival curves with risk tables, Bland-Altman agreement plots, flow diagrams (STROBE/PRISMA/CONSORT), or diagnostic 2x2 summaries. Ships med_figures.py for the four statistical chart forms and the three flow diagrams (numbers and count checks in stdlib, matplotlib only draws); the 2x2 table-figure remains a template. Extends the publication-figures style with journal conventions (NEJM/Lancet-style clean axes, colorblind-safe palettes, 89/183 mm column widths).
+description: Use when generating figures for medical research — ROC curves with CIs, forest plots of effect sizes, Kaplan-Meier survival curves with risk tables, Bland-Altman agreement plots, diagnostic 2x2 tables, or flow diagrams (STROBE/PRISMA/CONSORT). Ships med_figures.py for the five chart forms and the three flow diagrams (numbers and count checks in stdlib, matplotlib only draws). Extends the publication-figures style with journal conventions (NEJM/Lancet-style clean axes, colorblind-safe palettes, 89/183 mm column widths).
 ---
 
 # Medical publication figures
 
 Extends the bundled `publication-figures` style with the chart forms medical
-journals actually expect. The four statistical forms and the three flow
+journals actually expect. The five chart forms and the three flow
 diagrams are scripted; run the script and adjust the figure, do not re-derive
 the statistics or re-add the flow counts by hand.
 
@@ -23,6 +23,7 @@ python "$XDG_CONFIG_HOME/opencode/skills/med-figures/med_figures.py" roc scores.
 python ... forest studies.csv --measure rr --model random
 python ... km survival.csv --times 0,12,24 --time-unit months
 python ... bland-altman pairs.csv --a-label "CT" --b-label "MRI"
+python ... table 2x2.csv                    # counts + Sens/Spec/PPV/NPV + LR
 python ... flow flow.json                  # STROBE/PRISMA/CONSORT counts
 python ... flow --example prisma           # print a filled template
 ```
@@ -92,9 +93,12 @@ between curves stated on the plot.
 **Bland–Altman** — mean-bias line and ±1.96 SD limits of agreement with numeric
 labels; never a plain scatter without them.
 
-**2×2 accuracy summary** — table-figure: Sens/Spec/PPV/NPV each with Wilson CI;
-footnote the prevalence. Compute the numbers with `medical-stats/diag_stats.py`;
-the table layout is still hand-built.
+**2×2 accuracy summary** — `med_figures.py table 2x2.csv`: the count table
+(test × reference standard, with margins) plus Sens/Spec/PPV/NPV/Accuracy and
+LR+/LR− with their intervals, and the prevalence footnote. One row per table;
+use `diag_stats.py` when several cutoffs must be compared. Zero cells leave the
+likelihood-ratio CIs undefined — the script says so instead of applying a 0.5
+correction.
 
 ## Style rules
 

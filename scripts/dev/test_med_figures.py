@@ -270,6 +270,115 @@ class BlandAltmanMath(unittest.TestCase):
             med.bland_altman_analysis([1.0, 2.0, 3.0], [1.0, 2.0])
 
 
+class DiagnosticTableMath(unittest.TestCase):
+    def test_measures_match_the_hand_computation(self):
+        result = med.table_analysis(79, 45, 72, 4)
+        self.assertEqual(result["n"], 200)
+        self.assertAlmostEqual(result["prevalence"], 0.415, places=6)
+        self.assertAlmostEqual(result["metrics"]["sensitivity"][0], 0.951807, places=6)
+        self.assertAlmostEqual(result["metrics"]["specificity"][0], 0.615385, places=6)
+        self.assertAlmostEqual(result["metrics"]["ppv"][0], 0.637097, places=6)
+        self.assertAlmostEqual(result["metrics"]["npv"][0], 0.947368, places=6)
+        self.assertAlmostEqual(result["metrics"]["accuracy"][0], 0.755, places=6)
+        self.assertAlmostEqual(result["lr_positive"], 2.47470, places=4)
+        self.assertAlmostEqual(result["lr_negative"], 0.078313, places=5)
+
+    def test_intervals_are_wilson_and_ordered(self):
+        result = med.table_analysis(79, 45, 72, 4)
+        for key in ("sensitivity", "specificity", "ppv", "npv", "accuracy"):
+            point, low, high = result["metrics"][key]
+            self.assertLess(low, point)
+            self.assertLess(point, high)
+
+    def test_small_cell_is_flagged(self):
+        result = med.table_analysis(79, 45, 72, 4)
+        self.assertTrue(any("cell has <5 events" in w for w in result["warnings"]))
+
+    def test_zero_cell_leaves_likelihood_ratios_undefined(self):
+        result = med.table_analysis(10, 0, 10, 0)
+        self.assertIsNone(result["lr_positive"])
+        self.assertEqual(result["lr_negative"], 0.0)  # a perfect negative LR
+        self.assertIsNone(result["lr_negative_ci"])
+        self.assertTrue(any("likelihood-ratio" in w for w in result["warnings"]))
+
+    def test_empty_and_negative_tables_are_refused(self):
+        with self.assertRaises(med.FigureError):
+            med.table_analysis(0, 0, 0, 0)
+        with self.assertRaises(med.FigureError):
+            med.table_analysis(5, -1, 5, 5)
+
+
+class DiagnosticTableCli(unittest.TestCase):
+    def setUp(self):
+        self.dir = tempfile.mkdtemp()
+
+    def write_2x2(self, body="tp,fp,tn,fn\n79,45,72,4\n", name="t.csv"):
+        return write_csv(self.dir, name, body)
+
+    def test_single_row_writes_a_table_png(self):
+        out = os.path.join(self.dir, "table.png")
+        code, stdout, err = run_main(["table", self.write_2x2(), "--out", out])
+        self.assertEqual(code, 0 if HAVE_MPL else 3, err)
+        payload = review_of(stdout)
+        self.assertEqual(payload["gate"], "med-figures/table")
+        self.assertEqual(payload["estimates"]["counts"],
+                         {"tp": 79, "fp": 45, "tn": 72, "fn": 4})
+        self.assertAlmostEqual(payload["estimates"]["sensitivity"][0], 0.9518)
+        if HAVE_MPL:
+            self.assertTrue(os.path.isfile(out))
+            width, _ = png_size(out)
+            self.assertGreater(width, 1700)  # 183 mm at 300 dpi is ~2161 px
+
+    def test_columns_can_be_renamed(self):
+        path = self.write_2x2("pos,neg,true_neg,false_neg\n10,2,20,1\n",
+                              "renamed.csv")
+        out = os.path.join(self.dir, "renamed.png")
+        code, stdout, err = run_main(["table", path, "--tp", "pos", "--fp", "neg",
+                                      "--tn", "true_neg", "--fn", "false_neg",
+                                      "--out", out])
+        self.assertIn(code, (0, 3), err)
+        self.assertEqual(review_of(stdout)["estimates"]["counts"]["tn"], 20)
+
+    def test_several_rows_are_refused_with_a_pointer_to_diag_stats(self):
+        path = self.write_2x2("tp,fp,tn,fn\n10,2,20,1\n20,4,18,2\n", "multi.csv")
+        code, _, err = run_main(["table", path])
+        self.assertEqual(code, 2)
+        self.assertIn("one 2x2 table", err)
+        self.assertIn("diag_stats.py", err)
+
+    def test_non_whole_and_negative_counts_are_refused(self):
+        bad = self.write_2x2("tp,fp,tn,fn\n10.5,2,20,1\n", "fraction.csv")
+        code, _, err = run_main(["table", bad])
+        self.assertEqual(code, 2)
+        self.assertIn("whole number", err)
+        negative = self.write_2x2("tp,fp,tn,fn\n10,-2,20,1\n", "negative.csv")
+        self.assertEqual(run_main(["table", negative])[0], 2)
+
+    def test_out_cannot_overwrite_the_input(self):
+        path = self.write_2x2()
+        code, _, err = run_main(["table", path, "--out", path])
+        self.assertEqual(code, 2)
+        self.assertIn("overwrite the input", err)
+
+    @unittest.skipUnless(HAVE_MPL, "matplotlib not installed")
+    def test_missing_matplotlib_keeps_the_measures(self):
+        path = self.write_2x2()
+        out = os.path.join(self.dir, "table.png")
+        with mock.patch.object(med, "_import_pyplot", return_value=None):
+            code, stdout, _ = run_main(["table", path, "--out", out])
+        self.assertEqual(code, 3)
+        payload = review_of(stdout)
+        self.assertFalse(payload["rendered"])
+        self.assertAlmostEqual(payload["estimates"]["specificity"][0], 0.6154)
+        self.assertFalse(os.path.exists(out))
+
+    def test_the_printed_output_survives_a_gbk_console(self):
+        code, stdout, stderr = run_main(
+            ["table", self.write_2x2(), "--out",
+             os.path.join(self.dir, "table.png")])
+        (stdout + stderr).encode("gbk")
+
+
 class CliContract(unittest.TestCase):
     def setUp(self):
         self.dir = tempfile.mkdtemp()

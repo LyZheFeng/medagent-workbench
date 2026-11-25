@@ -24,7 +24,7 @@
 | 能力 | 说明 | 实现层次 |
 |---|---|---|
 | 🏥 医学连接器 | PubMed / 文献检索、biomcp(临床试验 / ClinVar)、GEO、openFDA,一键装入隔离环境 | 现成 MCP 服务器,接入即用 |
-| 🧠 医学技能 | 临床证据(PICO / CEBM / GRADE)、医学统计(诊断试验 / 样本量 / 生存分析)、医学图表(ROC / 森林图 / KM / Bland–Altman / 流程图)、CARE 病例报告、文献综述、引用核查、论文→报告 | 提示词级;`diag_stats.py`、`med_figures.py`、`citation_check.py` 为确定性脚本;Windows 安装包内置 Python 运行时 |
+| 🧠 医学技能 | 临床证据(PICO / CEBM / GRADE)、医学统计(诊断试验 / 样本量 / 生存分析)、医学图表(ROC / 森林图 / KM / Bland–Altman / 2×2 表 / 流程图)、CARE 病例报告、文献综述、引用核查、论文→报告 | 提示词级;`diag_stats.py`、`med_figures.py`、`citation_check.py` 为确定性脚本;Windows 安装包内置 Python 运行时 |
 | 🪪 去标识 | 病例报告 / 临床文本:姓名、住院号、身份证、电话、邮箱、地址、机构换成稳定令牌,日期整体偏移,≥90 岁归组 | `deidentify.py` 确定性脚本,输出 review 卡片;图像与 DICOM 不在范围内 |
 | 📋 报告规范 | 按 STROBE / CONSORT / CARE / STARD / PRISMA 逐条检查稿件**是否提到**必需项(伦理、知情同意、注册号、置信区间、缺失数据、去标识、流程、不良事件);每条结论标出官方条目号与清单版本,可再要求条目落在 Methods/Results 段 | `check_report.py` 确定性 gate,输出 review 卡片;存在性检查,不是合规结论 |
 | 📊 诊断统计 | 灵敏度 / 特异度 / PPV / NPV + Wilson 95% CI、ROC / AUC(bootstrap CI)、Youden 最佳截断 | `analyze.py`、`diag_stats.py`、`med_figures.py` 已实跑验证 |
@@ -85,7 +85,7 @@ pnpm --filter @ai4s/desktop tauri dev
 
 - 报告规范检查只判断"文本是否提到"某项,不判断写法是否合规;也不要把它当成投稿前的合规结论
 - 去标识脚本只处理文本:图像、DICOM 元数据,以及没有标签可循的姓名/罕见职业仍需人工核对;它是第一遍,不是匿名保证
-- 医学图表中的 2×2 表图仍按技能说明手工绘制,尚无脚本;ROC / 森林图 / KM / Bland–Altman 与 STROBE·PRISMA·CONSORT 流程图已由 `med_figures.py` 生成(流程图先校验计数,不成立拒绝出图)
+- 医学图表已覆盖 ROC / 森林图 / KM / Bland–Altman / 2×2 表与 STROBE·PRISMA·CONSORT 流程图,均由 `med_figures.py` 生成(流程图先校验计数,不成立拒绝出图);2×2 表一次画一张,多截断点比较用 `diag_stats.py`
 - 引用核查脚本(`citation_check.py`)只核验 DOI/PMID 是否存在、PubMed 是否记录了撤稿 / 更正 / 关注声明:
   没有 PMID 时输出"撤稿状态未知"而不是"干净",也不判断文献是否支持引用它的论点,不替代全文阅读
 - 安装包内置的 Python 只覆盖医学脚本用到的包(清单见 `scripts/dev/python-runtime-requirements.txt`);
